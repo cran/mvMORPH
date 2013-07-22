@@ -25,6 +25,7 @@ if(pseudoinverse!=TRUE){ pseudoinverse<-solve }
 	}
 
 ##-------------------------Calculation of parameters--------------------------##
+   
   # number of species
 n<-length(tree$tip.label)
 
@@ -146,11 +147,11 @@ epochs<-sapply(1:n,function(x){lineage<-as.numeric(c(cumsum(valLineage[[x]])[len
 
 	devianc<-function(alpha,sigma,dat,error,mt){
      if(constrAlpha==TRUE){alphA<-diag(alpha)}else{alphA<-sym.par(alpha)}
-     if(constrSigma==TRUE){sigmA<-diag(diag(sigma%*%t(sigma)))}else{sigmA<-sym.par(sigma)}    # à modifier il ne faut pas de valeurs négatives sous risque de faire planter
+     if(constrSigma==TRUE){sigmA<-diag(diag(sigma%*%t(sigma)))}else{sigmA<-sym.par(sigma)}  # à modifier? il ne faut pas de valeurs négatives sous risque de faire crasher
 		eig<-eigen(alphA)
-		N<-length(dat)# 
+		N<-length(dat)
 
-    V<-.Call("simmap_covar",nterm=as.integer(n),bt=mt$mDist,lambda=eig$values,S=eig$vectors,sigma.sq=sigmA)
+    V<-.Call("simmap_covar",nterm=as.integer(n),bt=mt$mDist,lambda=eig$values,S=eig$vectors,sigmasq=sigmA)
 		#Transformed C code from ouch
 		W<-.Call("simmap_weights",nterm=as.integer(n), epochs=epochs,lambda=eig$values,S=eig$vectors,beta=listReg)
   
@@ -222,7 +223,8 @@ est.theta<-function(estimML){
   	N<-length(dat)                
     eig<-eigen(alpha)
 
-    V<-.Call("simmap_covar",nterm=as.integer(n),bt=mt$mDist,lambda=eig$values,S=eig$vectors,sigma.sq=sigma)
+
+    V<-.Call("simmap_covar",nterm=as.integer(n),bt=mt$mDist,lambda=eig$values,S=eig$vectors,sigmasq=sigma)
    	if(!is.null(error)){
 			diag(V)<-diag(V)+error
 		}

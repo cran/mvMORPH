@@ -35,6 +35,7 @@ mTime<-function(phy,scale.height){
    mSpdist<-diag(vstand)
    mdist<-vstand
   }
+  # mcoph<-diag(mdist)-mdist
 list(mSpDist=mSpdist, mDist=mdist)
 }
 

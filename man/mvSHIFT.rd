@@ -11,7 +11,7 @@ This function allow the fitting of different models of evolution after a fixed p
 }
 \usage{
 mvSHIFT(tree, data, age = NULL, error = NULL, sigma = NULL, alpha = NULL, 
- sig = NULL, model = c("ER", "RR", "EC", "SR"), scale.height = FALSE, 
+ sig = NULL, model = c("ER", "RR", "EC", "RC", "SR"), scale.height = FALSE, 
  diagnostic = TRUE, method = c("L-BFGS-B", "Nelder-Mead", "subplex"), 
  pseudoinverse=FALSE, echo = TRUE, control=list(maxit=20000))
 }
@@ -43,11 +43,11 @@ mvSHIFT(tree, data, age = NULL, error = NULL, sigma = NULL, alpha = NULL,
 %%     ~~Describe \code{alpha} here~~
 }
   \item{sig}{
-   Starting values of the sigma matrix of the BM process after or before the time shift (in "RR" or "EC" models, see details).(optional)
+   Starting values of the sigma matrix of the BM process after or before the time shift (in "RR" or "RC" models, see details).(optional)
 %%     ~~Describe \code{sig} here~~
 }
   \item{model}{
-   Choose between "RR" for ecological release and radiate model, "ER" for ecological release model, "EC" for ecologically constrained model, or "SR" for shift rate model (see details).
+   Choose between "RR" for ecological release and radiate model, "ER" for ecological release model, "EC" for ecologically constrained model, "RC" for constrained model after radiation, or "SR" for shift rate model (see details).
 %%     ~~Describe \code{model} here~~
 }
   \item{scale.height}{
@@ -79,7 +79,7 @@ mvSHIFT(tree, data, age = NULL, error = NULL, sigma = NULL, alpha = NULL,
 The mvSHIFT function fit a shift in mode or rate of evolution at a fixed point in time, as previously proposed by some authors (O'Meara et al. 2006; O'Meara, 2012; Slater, 2013). Shift in mode of evolution could be mapped on a modified "phylo" object using the "make.era.map" function from the "phytools" package.
 Note that only one shift is allowed by the current version. The age of the shift could be otherwise directly provided in the function by the "age" argument in unit of times of the tree.
 
-The function allows to fit model of "ecological release" and "ecological release and radiate" following Slater (2013), as well as a model of constrained ecology "EC" (e.g., after invasion of a competitive species in a given ecosystem) where traits are constrained in a Ornstein-Uhlenbeck process after a fixed point in time. The "SR" model allows fitting different (brownian) rates before and after the shift point (note that this model could also be fitted using the mvBM function).
+The function allows to fit model of "ecological release" and "ecological release and radiate" following Slater (2013), as well as a model of constrained ecology "EC" (e.g., after invasion of a competitive species in a given ecosystem) where traits are constrained in a Ornstein-Uhlenbeck process after a fixed point in time ("RC" is the same model but assume an independent rate during the early radiative phase). The "SR" model allows fitting different (brownian) rates before and after the shift point (note that this model could also be fitted using the mvBM function).
 The models "RR" for "radiate and release" or "ER" for "ecological release", fit an Ornstein-Uhlenbeck process before the fixed point while the drift parameter is not constrained after this point ("ecological release") or is allowed to vary ("release and radiate"). (see Slater, 2013).
 %%  ~~ If necessary, more details than the description above ~~
 }

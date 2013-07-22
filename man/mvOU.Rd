@@ -36,7 +36,7 @@ mvOU(tree, data, error = NULL, sigma = NULL, alpha = NULL,
 %%     ~~Describe \code{sigma} here~~
 }
   \item{alpha}{
-  Starting values of the alpha matrix before optimization (optional). Note that if you use "constraint" instead of NULL, sigma covariances matrix off-diagonal are omitted. You can also use a list argument to provide starting values for each traits (see detail).
+  Starting values of the alpha matrix before optimization (optional). Note that if you use "constraint" instead of NULL, alpha covariances matrix off-diagonal are omitted. You can also use a list argument to provide starting values for each traits (see detail).
 %%     ~~Describe \code{alpha} here~~
 }
   \item{model}{
@@ -85,7 +85,7 @@ Note that Bartoszek et al.,(2012) proposed the mvSLOUCH package dedicated to mul
 \item{LogLik}{Log-Likelihood of the optimized model.}
 \item{AIC}{Akaike Information Criterion calculated for the best model.}
 \item{AICc}{Akaike Information Criterion corrected for small sample size.}
-\item{theta.mat}{Matrix of estimated theta values for each trait and selective regimes.}
+\item{theta}{Matrix of estimated theta values for each trait and selective regimes.}
 \item{alpha.mat}{Matrix of estimated alpha values (strength of selection) for the studied traits (diagonal).}
 \item{sigma.mat}{Matrix of estimated sigma values (drift) for the studied traits (diagonal).}
 \item{alpha}{alpha values estimated by the optimizing function.}
@@ -117,7 +117,7 @@ Julien Clavel
 }
 \note{
 
-This function use a modified version of the C code from the "OUCH" package build by Aaron King, as well as a C code part from the "ape" package by Emmanuel Paradis.  I kindly thank those authors for sharing their sources.
+This function partly use a modified version of the C code from the "OUCH" package build by Aaron King, as well as a C code part from the "ape" package by Emmanuel Paradis.  I kindly thank those authors for sharing their sources.
 %%  ~~further notes~~
 }
 

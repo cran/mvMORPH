@@ -1,11 +1,12 @@
+/*-Matrice de poids W pour un processus Ornstein-Uhlenbeck multivarie-----------------*/
+/*-mvMORPH 1.0.2 - 2014 - Julien Clavel - julien.clavel@hotmail.fr--------------------*/
 #include "ouch.h"
 
 static void simmap_weight_matrix (int *nchar, int *neps, double *epochs, double *lambda, double *S, double *y) {
   double *elt;
   double t;
-  double tmp;
   int n = *nchar, np = *neps;
-  int i, j, k, r, s;
+  int i, j, k, r;
   elt = Calloc(np*n,double);
   for (i = 0; i < np; i++) {
     t = epochs[0]-epochs[i];
@@ -30,7 +31,7 @@ static void simmap_weight_matrix (int *nchar, int *neps, double *epochs, double 
 
 SEXP simmap_weights (SEXP nterm, SEXP epochs, SEXP lambda, SEXP S, SEXP beta) {
   int nprotect = 0;
-  SEXP W, dim;
+  SEXP W;
   double *wp, *y, *bp;
   int nchar, nt, *nreg, totreg, np, xdim[2], ptr;
   int i, j, k, n, q;

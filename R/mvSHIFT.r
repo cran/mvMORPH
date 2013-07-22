@@ -8,7 +8,7 @@
 ##                                                                            ##
 ################################################################################
 
-mvSHIFT<-function(tree,data,age=NULL,error=NULL,sigma=NULL,alpha=NULL,sig=NULL,model=c("ER","RR","EC","SR"),scale.height=FALSE,diagnostic=TRUE,method=c("L-BFGS-B","Nelder-Mead","subplex"),pseudoinverse=FALSE,echo=TRUE,control=list(maxit=20000)){
+mvSHIFT<-function(tree,data,age=NULL,error=NULL,sigma=NULL,alpha=NULL,sig=NULL,model=c("ER","RR","EC","RC","SR"),scale.height=FALSE,diagnostic=TRUE,method=c("L-BFGS-B","Nelder-Mead","subplex"),pseudoinverse=FALSE,echo=TRUE,control=list(maxit=20000)){
 
 #set age shift with make.era from phytools if the age is provided
 if(!is.null(age)){
@@ -27,11 +27,16 @@ if(!is.matrix(data)){data<-as.matrix(data)}
 
 
 #set parameters for ecological constraint model
-if(model=="EC" || model=="constraint"){
+if(model=="EC" || model=="RC"){
 before<-2
 after<-1
-model<-"RR"
+if(model=="EC"){
+model<-"ER"
 nmod<-"Ecological Constraint"
+}else if(model=="RC"){
+model<-"RR"
+nmod<-"Radiation and Ecological Constraint"
+  }
 }else{
 before<-1
 after<-2
@@ -89,8 +94,7 @@ nsig<-nsigma*2
   # bind data to a vector
   if(is.matrix(data)){
 dat<-as.vector(data) }else{ dat<-as.vector(as.matrix(data))}
-  # method for the optimizer
-method<-method[1]
+
   # Taken from phytools
 W <- matrix(0, n * p, p)
     for (i in 1:(n * p)){
@@ -103,11 +107,15 @@ if(!is.null(error)){error<-as.vector(error)}
 
 ##------------------------Likelihood function---------------------------------##
 # release and radiate
-lik.shift<-function(alpha,sigma,sig,dat,error,vcvList){ 
+lik.shift<-function(alpha,sigma,sig,dat,error,vcvList,p){ 
   
   #calcul de la matrice de variance pour le modèle OU + BM
+  if(p==1){
+  Vou<-.Call("mvmorph_covar_ou",A=vcvList[[before]],alpha=alpha, sigma=sigma)
+  }else{
   eig<-eigen(alpha)
-  Vou<-.Call("simmap_covar",nterm=as.integer(n),bt=vcvList[[before]],lambda=eig$values,S=eig$vectors,sigma.sq=sigma)
+  Vou<-.Call("mvmorph_covar_mat",nterm=as.integer(n),bt=vcvList[[before]],lambda=eig$values,S=eig$vectors,sigmasq=sigma)
+  }
   V<-Vou+kronecker(sig,vcvList[[after]])
   
   # add measurement error
@@ -146,7 +154,8 @@ estim <- optim(
                                sig=sym.par(par[nsig+seq_len(nsigma)]),
                                error=error,
                                dat=dat,
-                               vcvList=vcvList
+                               vcvList=vcvList,
+                               p=p
                                )
                    },
                    gr=NULL,
@@ -164,7 +173,8 @@ estim <- subplex(
                                sig=sym.par(par[nsig+seq_len(nsigma)]),
                                error=error,
                                dat=dat,
-                               vcvList=vcvList
+                               vcvList=vcvList,
+                               p=p
                                )
                    },
                    hessian=TRUE,
@@ -179,9 +189,12 @@ est.theta<-function(estimML){
     sigma=sym.par(estimML[nalpha+seq_len(nsigma)])
     sig=sym.par(estimML[nsig+seq_len(nsigma)])
   	N<-length(dat) 
+    if(p==1){
+    Vou<-.Call("mvmorph_covar_ou",A=vcvList[[before]],alpha=alpha, sigma=sigma)
+    }else{ 
     eig<-eigen(alpha)
-
-    Vou<-.Call("simmap_covar",nterm=as.integer(n),bt=vcvList[[before]],lambda=eig$values,S=eig$vectors,sigma.sq=sigma)
+    Vou<-.Call("mvmorph_covar_mat",nterm=as.integer(n),bt=vcvList[[before]],lambda=eig$values,S=eig$vectors,sigmasq=sigma)
+    }
     V<-Vou+kronecker(sig,vcvList[[after]])
   
    # add measurement error

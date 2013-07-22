@@ -27,7 +27,7 @@ mvBM(tree, data, error = NULL, reg = NULL, model = c("BMM", "BM1"),
 %%     ~~Describe \code{data} here~~
 }
   \item{error}{
-   Matrix or data frame with species in rows and continuous traits standard error in columns.
+   Matrix or data frame with species in rows and continuous traits standard error (squared) in columns.
 %%     ~~Describe \code{error} here~~
 }
   \item{reg}{
@@ -81,7 +81,7 @@ mvBM(tree, data, error = NULL, reg = NULL, model = c("BMM", "BM1"),
 }
 \details{
 The mvBM function fit a multivariate Brownian Motion (BM) process, with unique or multiple BM rates (see O'Meara et al., 2006; and Revell and Collar, 2009). Note that the function use the non-censored approach of O'Meara et al. (2006).
-Constrained models force the sigma values for each studied trait to be the same using the constrained choleski decomposition proposed by Adams (2013), which allows considering the covariation between traits.
+Constrained models force the sigma values for each studied trait to be the same using the constrained Cholesky decomposition proposed by Adams (2013), which allows considering the covariation between traits.
  This approach is extended here to the multi-rate case, by specifying that the rates must be the same in different parts of the tree (common selective regime).
  If the tree is in "phylo" format, the user may specify the selective regime for each tip species (in the same order as in the phylogeny) with the argument "reg". If no selective regimes are specified the function works only with the model "BM1".
  
@@ -177,4 +177,4 @@ Julien Clavel
 % R documentation directory.
 \keyword{ Brownian Motion }
 \keyword{ Evolutionary rates }
-\keyword{ Choleski constraint }% __ONLY ONE__ keyword per line
+\keyword{ Cholesky constraint }% __ONLY ONE__ keyword per line

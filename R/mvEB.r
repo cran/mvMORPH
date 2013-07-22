@@ -147,11 +147,11 @@ r=estim$par[1]
 # LogLikelihood
 LL<--estim$value
 # models parameters
-nparam=1+(2*p)  #p ancestral states, p rates, 1 EB 'g' parameter
+nparam=p+length(estim$par)#nparam=1+(2*p)  #p ancestral states, p rates, 1 EB 'g' parameter
 # AIC
 AIC<--2*LL+2*nparam
 # AIC corrected
-AICc<-AIC+((2*nparam*(nparam+1))/(n-nparam-1)) #Hurvich et Tsai, 1995
+AICc<-AIC+((2*nparam*(nparam+1))/(n-nparam-1)) #Hurvich et Tsai, 1989
 ##---------------------Diagnostics--------------------------------------------##
 
 if(estim$convergence==0 & diagnostic==TRUE){  
@@ -180,6 +180,7 @@ cat("Summary results for Early Burst or ACDC model","\n")
 cat("LogLikelihood:","\t",LL,"\n")
 cat("AIC:","\t",AIC,"\n")
 cat("AICc:","\t",AICc,"\n")
+cat(nparam,"parameters","\n")
 cat("Rate change:","\t",r,"\n")
 cat("\n")
 cat("Estimated rates matrix","\n")

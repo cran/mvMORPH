@@ -220,9 +220,9 @@ LL<- -estim$value
 
 # free parameters
 if(model=="release" || model=="ER"){
-nparam=(2*p)+p
+nparam=p+length(estim$par) # nparam=(2*p)+p # sans les covariances
 }else if(model=="radiate" || model=="RR"){
-nparam=(3*p)+p
+nparam=p+length(estim$par) # (3*p)+p  # sans les covariances
 }
 # maximum likelihood estimates of alpha and sigma
 estim.alpha<-estim$par[seq_len(nalpha)]
@@ -248,7 +248,7 @@ sig.mat<-sym.par(estim.sig)
 # AIC
 AIC<- -2*LL+2*nparam
 # AIC corrected
-AICc<-AIC+((2*nparam*(nparam+1))/(n-nparam-1)) #Hurvich et Tsai, 1995
+AICc<-AIC+((2*nparam*(nparam+1))/(n-nparam-1)) #Hurvich et Tsai, 1989
 # matrix of estimated theta values
 theta.mat<-matrix(res.theta,1)
 
@@ -262,6 +262,7 @@ cat("Summary results for the",nmod,"model","\n")
 cat("LogLikelihood:","\t",LL,"\n")
 cat("AIC:","\t",AIC,"\n")
 cat("AICc:","\t",AICc,"\n")
+cat(nparam,"parameters")
 cat("\n")
 cat("Estimated theta values","\n")
 print(theta.mat)

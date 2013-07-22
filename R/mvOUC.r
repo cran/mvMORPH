@@ -40,9 +40,24 @@ mb<-max(nodeHeights(tree))
 k<-length(colnames(tree$mapped.edge))
 }else{ k<-1 }
   # number of traits
-p<-ncol(data)
-  # number of submatrix
-par<-p*p
+  if(is.vector(data)){
+  p<-1 }else{ p<-ncol(data)}
+  if(p==1){
+  if(!is.null(alpha)){
+    if(length(alpha)>1){
+    stop("You must provide a unique starting value for univariate models")
+    }
+    if(!is.numeric(alpha[[1]])){
+    stop("You can't use a constraint on univariate models")
+    }}
+    if(!is.null(sigma)){
+    if(length(sigma)>1){
+    stop("You must provide a unique starting value for univariate models")
+    }
+    if(!is.numeric(sigma[[1]])){
+    stop("You can't use a constraint on univariate models")
+    }}    
+  }
   # ancestor times calculation
 mt<-mTime(tree,scale.height)
   # bind data to a vector
@@ -52,9 +67,33 @@ dat<-as.vector(data) }else{ dat<-as.vector(as.matrix(data))}
 if(!is.null(error)){error<-as.vector(error)}
 
 
-  # initial alpha and sigma matrix if not provided
-if(is.null(sigma)){sigma=sym.unpar(diag(1,p))}
-if(is.null(alpha)){alpha=sym.unpar(diag(1,p))}
+## initial alpha and sigma matrix if not provided / or constrained models
+# sigma matrix  
+constrSigma<-FALSE 
+if(is.null(sigma)){
+ sigma=sym.unpar(diag(0.1,p))
+ }
+if(!is.numeric(sigma[[1]])){
+  if(length(sigma)==2){
+   if(is.numeric(sigma[[2]])){
+  sigma=sigma[[2]]} }else{ sigma=rep(0.1,p) }
+  constrSigma<-TRUE
+  }
+
+ 
+# alpha matrix      
+constrAlpha<-FALSE 
+if(is.null(alpha)){
+alpha=sym.unpar(diag(0.1,p))
+}
+if(!is.numeric(alpha[[1]])){
+if(length(alpha)==2){
+  if(is.numeric(alpha[[2]])){
+  alpha=alpha[[2]]}}else{ alpha=rep(0.1,p)}
+   constrAlpha<-TRUE
+  }   
+     
+# number of parameters for each matrix
 nalpha<-length(alpha)
 nsigma<-length(sigma)
 
@@ -106,11 +145,12 @@ epochs<-sapply(1:n,function(x){lineage<-as.numeric(c(cumsum(valLineage[[x]])[len
 ##-----------------------Likelihood Calculation-------------------------------##
 
 	devianc<-function(alpha,sigma,dat,error,mt){
-
-		eig<-eigen(alpha)
+     if(constrAlpha==TRUE){alphA<-diag(alpha)}else{alphA<-sym.par(alpha)}
+     if(constrSigma==TRUE){sigmA<-diag(diag(sigma%*%t(sigma)))}else{sigmA<-sym.par(sigma)}    # à modifier il ne faut pas de valeurs négatives sous risque de faire planter
+		eig<-eigen(alphA)
 		N<-length(dat)# 
 
-    V<-.Call("simmap_covar",nterm=as.integer(n),bt=mt$mDist,lambda=eig$values,S=eig$vectors,sigma.sq=sigma)
+    V<-.Call("simmap_covar",nterm=as.integer(n),bt=mt$mDist,lambda=eig$values,S=eig$vectors,sigma.sq=sigmA)
 		#Transformed C code from ouch
 		W<-.Call("simmap_weights",nterm=as.integer(n), epochs=epochs,lambda=eig$values,S=eig$vectors,beta=listReg)
   
@@ -142,8 +182,8 @@ estim <- optim(
                    par=c(alpha,sigma),
                    fn = function (par) {
                      devianc(
-                               alpha=sym.par(par[seq_len(nalpha)]),
-                               sigma=sym.par(par[nalpha+seq_len(nsigma)]),
+                               alpha=par[seq_len(nalpha)],
+                               sigma=par[nalpha+seq_len(nsigma)],
                                error=error,
                                dat=dat,
                                mt=mt
@@ -159,8 +199,8 @@ estim <- subplex(
                    par=c(alpha,sigma),
                    fn = function (par) {
                      devianc(
-                               alpha=sym.par(par[seq_len(nalpha)]),
-                               sigma=sym.par(par[nalpha+seq_len(nsigma)]),
+                               alpha=par[seq_len(nalpha)],
+                               sigma=par[nalpha+seq_len(nsigma)],
                                error=error,
                                dat=dat,
                                mt=mt
@@ -175,9 +215,11 @@ estim <- subplex(
 
 est.theta<-function(estimML){
 
-    alpha=sym.par(estimML[seq_len(nalpha)])
-    sigma=sym.par(estimML[nalpha+seq_len(nsigma)])
-  	N<-length(dat) 
+    if(constrAlpha==TRUE){alpha<-diag(estimML[seq_len(nalpha)])}else{alpha<-sym.par(estimML[seq_len(nalpha)])}
+    
+    if(constrSigma==TRUE){sigma<-diag(diag(estimML[nalpha+seq_len(nsigma)]%*%t(estimML[nalpha+seq_len(nsigma)])))}else{sigma<-sym.par(estimML[nalpha+seq_len(nsigma)])}
+
+  	N<-length(dat)                
     eig<-eigen(alpha)
 
     V<-.Call("simmap_covar",nterm=as.integer(n),bt=mt$mDist,lambda=eig$values,S=eig$vectors,sigma.sq=sigma)
@@ -215,24 +257,30 @@ cat("a reliable solution has been reached","\n")}
 
 ##-------------------Summarize Results----------------------------------------##
 LL<- -estim$value 
-#nparam=nalpha+nsigma+(k*p)   # for all parameters  (optional)
+nparam=nalpha+nsigma+(k*p)   # for all parameters  (optional)
 #or for free parameters
-nparam=(2*p)+(k*p)
+#nparam=(2*p)+(k*p)
 # maximum likelihood estimates of alpha and sigma
 estim.alpha<-estim$par[seq_len(nalpha)]
 estim.sigma<-estim$par[nalpha+seq_len(nsigma)]
-# estimates standards errors
-estim.se<-sqrt(diag(pseudoinverse(estim$hessian)))
+# estimates standards errors - half of the hessian matrix as we are minimizing the loglikelihood
+estim.se<-sqrt(diag(pseudoinverse(0.5*estim$hessian)))
 estim.se.alpha<-estim.se[seq_len(nalpha)]
 estim.se.sigma<-estim.se[nalpha+seq_len(nsigma)]
 # alpha matrix
-alpha.mat<-sym.par(estim.alpha)
+if(constrAlpha==TRUE){
+alpha.mat<-diag(estim.alpha)
+}else{
+alpha.mat<-sym.par(estim.alpha)  }
 # sigma matrix
-sigma.mat<-sym.par(estim.sigma)
+if(constrSigma==TRUE){
+sigma.mat<-diag(diag(estim.sigma%*%t(estim.sigma)))
+}else{
+sigma.mat<-sym.par(estim.sigma)}
 # AIC
 AIC<- -2*LL+2*nparam
 # AIC corrected
-AICc<-AIC+((2*nparam*(nparam+1))/(n-nparam-1)) #Hurvich et Tsai, 1995
+AICc<-AIC+((2*nparam*(nparam+1))/(n-nparam-1)) # Hurvich et Tsai, 1989
 # matrix of estimated theta values
 theta.mat<-matrix(res.theta,k)
 if(model=="OUM"){
@@ -247,6 +295,7 @@ cat("Summary results","\n")
 cat("LogLikelihood:","\t",LL,"\n")
 cat("AIC:","\t",AIC,"\n")
 cat("AICc:","\t",AICc,"\n")
+cat(nparam,"parameters")
 cat("\n")
 cat("Estimated theta values","\n")
 print(theta.mat)

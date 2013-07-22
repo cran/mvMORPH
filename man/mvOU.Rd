@@ -27,16 +27,16 @@ mvOU(tree, data, error = NULL, sigma = NULL, alpha = NULL,
 %%     ~~Describe \code{data} here~~
 }
   \item{error}{
-  Matrix or data frame with species in rows and continuous traits standard error in columns.
+  Matrix or data frame with species in rows and continuous traits standard error (squared) in columns.
   
 %%     ~~Describe \code{error} here~~
 }
   \item{sigma}{
-  Starting values of the sigma matrix before optimization (optional).
+  Starting values of the sigma matrix before optimization (optional). Note that if you use "constraint" instead of NULL, sigma covariances matrix off-diagonal are omitted. You can also use a list argument to provide starting values for each traits (see detail).
 %%     ~~Describe \code{sigma} here~~
 }
   \item{alpha}{
-  Starting values of the alpha matrix before optimization (optional).
+  Starting values of the alpha matrix before optimization (optional). Note that if you use "constraint" instead of NULL, sigma covariances matrix off-diagonal are omitted. You can also use a list argument to provide starting values for each traits (see detail).
 %%     ~~Describe \code{alpha} here~~
 }
   \item{model}{
@@ -72,6 +72,8 @@ mvOU(tree, data, error = NULL, sigma = NULL, alpha = NULL,
 The mvOU function fit a multivariate model of evolution according to a Ornstein-Uhlenbeck process. This function use a modified version of the OUCH package (Butler & King, 2004) and extends it by allowing the user to incorporate measurement error and use SIMMAP-like mapping of ancestral states. SIMMAP mapping allows one to assign parts of branchs to different selective regimes, and allows testing for changes in trait variance which are not synchronous with the species divergence event.
 
 Mapping of ancestral states can be done using the "make.simmap", "make.era.map" or "paintSubTree" functions from the "phytools" package.
+
+It is possible to test for the significance of the off-diagonal sigma and alpha matrix in the full model by making comparison with a constrained model (using sigma="constraint", or alpha="constraint"). You can also provide starting values for the constrained model. For instance, for two traits use sigma=list("constraint", c(0.5,0.5))  (or alpha=list("constraint", c(0.5,0.5))).
 
 The hessian is the matrix of second order partial derivatives of the likelihood function with respect to the maximum likelihood parameter values. This matrix provide a measure of the steepness of the likelihood surface in the region of the optimum. The eigen-decomposition of the hessian matrix returned by the optimizing function allow to assess the reliability of the fit of the model (even if the optimizer have converged).
 When the optimization function does not converge on a stable result, the user may consider increasing the "maxit" argument in the "control" option, or try a simpler model with less parameters to estimate. Changing the starting values ("alpha" and "sigma" options) as well as the optimizing function ("method" options) may help sometimes (e.g., alpha=runif(3) for two traits analysis with random starting values (i.e., the lower triangular alpha matrix)).

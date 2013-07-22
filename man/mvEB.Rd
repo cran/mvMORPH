@@ -25,7 +25,7 @@ mvEB(tree, data, error = NULL, low = -3, up = 0, tol=c(0.00000001,Inf),
 %%     ~~Describe \code{data} here~~
 }
   \item{error}{
-   Matrix or data frame with species in rows and continuous traits standard error in columns.
+   Matrix or data frame with species in rows and continuous traits standard error (squared) in columns.
 %%     ~~Describe \code{error} here~~
 }
   \item{low}{

@@ -129,7 +129,7 @@ k<-dim(data)[2]
 # number of selective regimes
 if(model!="BM1"){
 p<-dim(C2)[3]
-}
+}else{ p<-1 } # for calculating free parameters in the LRT test
 
 # bind data to a vector
   if(!is.matrix(data)){
@@ -266,14 +266,14 @@ anc<-lik.BM1(param=estim$par,dat=data,C=C1,D=D,error=error)$ancstate
 LL<--estim$value
 # models parameters
 if(model=="BMM"){
-nparam=k+(p*k)  #p for each regimes, k for each rates, k for each ancestral states   or(k+length(unique(index.mat))?
+nparam=k+length(unique(index.mat))  #k+(p*k) = p for each regimes, k for each rates, k for each ancestral states   or(k+length(unique(index.mat))?
 }else if(model=="BM1"){
-nparam=k+k      # k for each rates and k for each ancestral states
+nparam=k+length(estim$par)        #k+k= k for each rates and k for each ancestral states
 }
 # AIC
 AIC<--2*LL+2*nparam
 # AIC corrected
-AICc<-AIC+((2*nparam*(nparam+1))/(n-nparam-1)) #Hurvich et Tsai, 1995
+AICc<-AIC+((2*nparam*(nparam+1))/(n-nparam-1)) #Hurvich et Tsai, 1989
 ##---------------------Diagnostics--------------------------------------------##
 
 if(estim$convergence==0 & diagnostic==TRUE){  
@@ -302,6 +302,7 @@ cat("Summary results for multiple rates",model,"model","\n")
 cat("LogLikelihood:","\t",LL,"\n")
 cat("AIC:","\t",AIC,"\n")
 cat("AICc:","\t",AICc,"\n")
+cat(nparam,"parameters")
 cat("\n")
 cat("Estimated rates matrix","\n")
 print(resultList)
@@ -444,9 +445,9 @@ cat("a reliable solution has been reached","\n")}
 LLc<--estim.const$value
 
 if(model=="BMM"){
-nparamc=p+k #p for each regimes, k for each ancestral states, 1 rates   #k+length(unique(index.mat.cons))
+nparamc=k+length(unique(index.mat.cons)) #p+k = p for each regimes, k for each ancestral states, 1 rates   #
 }else if(model=="BM1"){
-nparamc=1+k   #k for each ancestral states, 1 for rates
+nparamc=k+length(estim.const$par)   #1+k = k for each ancestral states, 1 for rates
 }
 # maximum likelihood estimates of rates matrix
 if(model=="BMM"){
@@ -484,6 +485,7 @@ cat("Summary results for the constrained",model,"model","\n")
 cat("LogLikelihood:","\t",LLc,"\n")
 cat("AIC:","\t",Cons.AIC,"\n")
 cat("AICc:","\t",Cons.AICc,"\n")
+cat(nparamc,"parameters")
 cat("\n")
 cat("Estimated rates matrix","\n")
 print(resultListC)
@@ -496,7 +498,7 @@ cat("\n")
 
 LRT<-(2*((LL-LLc)))
 #nvariables-1 degrees of freedom
-LRT.prob<-pchisq(LRT,(k-1),lower.tail=FALSE)  
+LRT.prob<-pchisq(LRT,(k-1)*p,lower.tail=FALSE)  
 if(echo==TRUE){ 
 cat("LRT p-value:",LRT.prob,"\n")
 }

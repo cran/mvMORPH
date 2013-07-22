@@ -30,7 +30,7 @@ mvSHIFT(tree, data, age = NULL, error = NULL, sigma = NULL, alpha = NULL,
 %%     ~~Describe \code{age} here~~
 }
   \item{error}{
-   Matrix or data frame with species in rows and continuous traits standard error in columns
+   Matrix or data frame with species in rows and continuous traits standard error (squared) in columns
   
 %%     ~~Describe \code{error} here~~
 }
@@ -106,7 +106,7 @@ The models "RR" for "radiate and release" or "ER" for "ecological release", fit 
 %% ...
 }
 \references{
-O'Meara B.C. 2012. Evolutionary inferences from phylogenies: a revew of methods. Annu. Rev. Ecol. Evol. Syst. 43:267-285. 
+O'Meara B.C. 2012. Evolutionary inferences from phylogenies: a review of methods. Annu. Rev. Ecol. Evol. Syst. 43:267-285. 
 
 O'Meara B.C., Ane C., Sanderson M.J., Wainwright P.C. 2006. Testing for different rates of continuous trait evolution. Evolution. 60:922-933. 
 
@@ -147,7 +147,7 @@ Changes in rate of evolution and optima can also be fitted using the mvBM and mv
 
   # Making the simmap tree with the shift at a fixed point in time
   tot<-max(nodeHeights(tree))
-  age=tot-0.3
+  age=tot-0.3    # The shift occured 0.3 Ma ago
   tree<-make.era.map(tree,c(0,age))
 
   # Plot of the phylogeny for illustration
@@ -164,7 +164,7 @@ Changes in rate of evolution and optima can also be fitted using the mvBM and mv
   # Note that different rates before and after the shift could be fitted as:
   mvBM(tree,data)
   # or
-  mvSHIFT(tree,data,age,model="SR")
+  mvSHIFT(tree,data,0.3,model="SR")
   
   
   # Not run

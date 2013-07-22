@@ -1,0 +1,16 @@
+f42e645f3523cdd983c5c2b4538e1860 *DESCRIPTION
+a45d280429f8373a4f1fe60e2ab5e83b *NAMESPACE
+92397b86979d9814d0402bc64416a479 *R/fun.r
+44fbd78ab7acfea4112249a743fd90e8 *R/mvBM.r
+ef8be6cdff5faedf4e74998f8496202a *R/mvEB.r
+8d6e4c9d5cd423a8368d961ce0f0ad8c *R/mvOUC.r
+80fb027944e5b1286a1169f2c9207043 *R/mvSHIFT.r
+125f30e15222f59f2d608034d9386e7d *man/mvBM.Rd
+82b7295d69cbaf9922911a8ccd1e326f *man/mvEB.Rd
+00b86b2f4e6b2941c2f5fc5d82cc0b86 *man/mvMORPH-package.Rd
+749ffab3c94e8f11cbe075466d80efad *man/mvOU.Rd
+fd815190b1fa4b81f1865d69a49afbaa *man/mvSHIFT.rd
+12318def7aab15104101c0ee65a209e4 *src/covar-matrix-simmap.c
+d6b9ff349209440716afbca3d223c5fa *src/ouch.h
+c16d8142ce16e3bd147a0afd6c593d17 *src/root2tip.c
+2003a1ca116ddae5a66714500a425457 *src/weight-matrix-simmap.c

@@ -1,0 +1,3 @@
+export(mvOU,mvBM,mvEB,mvSHIFT)
+import(ape,phytools,corpcor,subplex)
+useDynLib(mvMORPH,simmap_covar,simmap_weights)

@@ -1,6 +1,6 @@
 /*-Matrice de covariance pour un processus Ornstein-Uhlenbeck multivarie-version-OUCH-*/
 /*-mvMORPH 1.0.2 - 2014 - Julien Clavel - julien.clavel@hotmail.fr--------------------*/
-#include "mvmorph.h"
+#include "covar.h"
 
 static void simmap_covar_matrix (int *nchar, 
 			       double *bt, 

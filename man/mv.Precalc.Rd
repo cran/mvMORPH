@@ -121,5 +121,5 @@ mvOU(tree, simul[[1]], method="sparse", model="OU1", precalc=precal,
 
 % Add one or more standard keywords, see file 'KEYWORDS' in the
 % R documentation directory.
-\keyword{ ~kwd1 }
-\keyword{ ~kwd2 }% __ONLY ONE__ keyword per line
+\keyword{ precalculation }
+\keyword{ parameters }% __ONLY ONE__ keyword per line

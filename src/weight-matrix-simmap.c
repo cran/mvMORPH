@@ -2,7 +2,7 @@
 /*-mvMORPH 1.0.2 - 2014 - Julien Clavel - julien.clavel@hotmail.fr--------------------*/
 /*-Modified with permission from A. King OUCH ----------------------------------------*/
 
-#include "mvmorph.h"
+#include "covar.h"
 
 static void simmap_weight_matrix (int *nchar, int *neps, double *epochs, double *lambda, double *S, double *y) {
   double *elt;

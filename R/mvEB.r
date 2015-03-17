@@ -122,7 +122,7 @@ switch(method,
 },
 "pic"={
     eb_fun_matrix<-function(beta,sig,n,k,precalcMat,C,D,dat,error,method,precalc){
-        res<-.Call("PIC_gen", x=dat, n=as.integer(k), Nnode=as.integer(tree$Nnode), nsp=as.integer(n), edge1=as.integer(tree$edge[,1]), edge2=as.integer(tree$edge[,2]), edgelength=list(tree$edge.length), times=tt, rate=as.double(beta), Tmax=1, Model=as.integer(1), mu=NULL, sigma=NULL)
+        res<-.Call("PIC_gen", x=dat, n=as.integer(k), Nnode=as.integer(tree$Nnode), nsp=as.integer(n), edge1=as.integer(tree$edge[,1]), edge2=as.integer(tree$edge[,2]), edgelength=list(tree$edge.length), times=tt, rate=as.double(rep(beta,k)), Tmax=1, Model=as.integer(1), mu=1, sigma=1)
         logl<- -0.5 * ( n * k * log( 2 * pi) +  res[[5]] + n * res[[6]]  + res[[4]] )
        return(list(logl=logl,anc=res[[7]], sigma=res[[2]]))
     }

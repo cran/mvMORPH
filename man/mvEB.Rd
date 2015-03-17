@@ -10,10 +10,11 @@ This function fits multivariate Early Burst (EB) or ACDC models of evolution.
 %%  ~~ A concise (1-5 lines) description of what the function does. ~~
 }
 \usage{
-mvEB(tree, data, error = NULL, param = list(low = -3, up = 0), method = c("rpf",
-    "sparse", "inverse", "pseudoinverse", "pic"), scale.height = FALSE,
-    optimization = c("L-BFGS-B", "Nelder-Mead", "subplex"), control =
-    list(maxit = 20000), precalc = NULL, diagnostic = TRUE, echo = TRUE)
+mvEB(tree, data, error = NULL, param = list(low = -3, up = 0), method = 
+	c("rpf", "sparse", "inverse", "pseudoinverse", "pic"), scale.height =
+	 FALSE, optimization = c("L-BFGS-B", "Nelder-Mead", "subplex"), 
+	 control = list(maxit = 20000), precalc = NULL, diagnostic = TRUE, 
+	 echo = TRUE)
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
@@ -125,7 +126,8 @@ set.seed(14)
 tree<-pbtree(n=50)
 
 # Setting the regime states of tip species
-sta<-as.vector(c(rep("Forest",20),rep("Savannah",30))); names(sta)<-tree$tip.label
+sta<-as.vector(c(rep("Forest",20),rep("Savannah",30)))
+names(sta)<-tree$tip.label
 
 # Making the simmap tree with mapped states
 tree<-make.simmap(tree,sta , model="ER", nsim=1)
@@ -159,5 +161,7 @@ summary(fit)
 }
 % Add one or more standard keywords, see file 'KEYWORDS' in the
 % R documentation directory.
-\keyword{ ~kwd1 }
-\keyword{ ~kwd2 }% __ONLY ONE__ keyword per line
+\keyword{ Early burst }
+\keyword{ Decelerating rates }
+\keyword{ Accelerating rates }
+% __ONLY ONE__ keyword per line

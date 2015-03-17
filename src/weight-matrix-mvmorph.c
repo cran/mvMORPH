@@ -3,7 +3,7 @@
 /*-scale the weight matrix so that the rows sum to 1----------------------------------*/
 /*-generalization to non-ultrametric trees and non-symmetric A matrix-----------------*/
 
-#include "mvmorph.h"
+#include "covar.h"
 
 
 

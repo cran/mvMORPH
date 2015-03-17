@@ -1,6 +1,6 @@
 /*-Matrice de covariance pour un processus Ornstein-Uhlenbeck multivarie--------------*/
 /*-mvMORPH 1.0.2 - 2014 - Julien Clavel - julien.clavel@hotmail.fr--------------------*/
-#include "mvmorph.h"
+#include "covar.h"
 
 static void mvmorph_covar_mat_nult (int *nchar, int *nt, double *bt, double *lambda, double *S, double *sigmasq, double *V, double *S1) {
   double *U, *G, *F, *exp1, *exp1l, *exp2, *exp2l;

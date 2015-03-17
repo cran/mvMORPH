@@ -1,6 +1,6 @@
 /*-Matrice de covariance pour un processus Ornstein-Uhlenbeck multivarie--------------*/
 /*-mvMORPH 1.0.2 - 2014 - Julien Clavel - julien.clavel@hotmail.fr--------------------*/
-#include "mvmorph.h"
+#include "covar.h"
 
 
 static void copy_sparse(int *IA, int *JA, int *nrow, double *V, double *A){

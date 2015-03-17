@@ -23,7 +23,8 @@ static void copy_sparse(int *IA, int *JA, int *nrow, double *restrict V, double 
     
 }
 
-static void sum_sparse(int *IA, int *JA, int *nrow, double *restrict V, double *restrict A){
+/*
+ static void sum_sparse(int *IA, int *JA, int *nrow, double *restrict V, double *restrict A){
     
     int n, i, j, init, end, inc=0;
     n = *nrow;
@@ -38,6 +39,7 @@ static void sum_sparse(int *IA, int *JA, int *nrow, double *restrict V, double *
         }
     }
 }
+ */
 
 // Adapted from Yadav & Michalak 2013
 static void kronecker_eb(int *rrows, int *crows, double *R, double *C, double *V, double *beta){

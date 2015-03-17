@@ -47,7 +47,7 @@ static void ouTree(double *times, double *tempblength, double *blength, double *
         age=times[inded1-(nt+1)];
         t1=Tmax[0]-age;
         t2=t1+bl;
-        tempblength[i]=(1/(2*rate[0]))*exp(-2*rate[0] * (Tmax[0]-t2)) * (1 - exp(-2 * rate[0] * t2))-(1/(2*rate[0]))*exp(-2*rate[0] * (Tmax[0]-t1)) * (1 - exp(-2 * rate[0] * t1));
+        tempblength[i]=(1./(2.*rate[0]))*exp(-2.*rate[0] * (Tmax[0]-t2)) * (1. - exp(-2. * rate[0] * t2))-(1./(2.*rate[0]))*exp(-2.*rate[0] * (Tmax[0]-t1)) * (1. - exp(-2. * rate[0] * t1));
     }
 }
 
@@ -131,9 +131,9 @@ static void phylo_pic(int *ind, int *ntotal, int *numbnode, int *nsp, int *edge1
 // 7-default - Brownian Motion on a single topology
 
 SEXP PIC_gen(SEXP x, SEXP n, SEXP Nnode, SEXP nsp, SEXP edge1, SEXP edge2, SEXP edgelength, SEXP times, SEXP rate, SEXP Tmax, SEXP Model, SEXP mu, SEXP sigma){
-  int nodnbtr, numbnod, ntip, anc, d1, d2, ic, i, j, k, l, ntot, ntraits, dimrtrait, f, model, info = 0, neg = 0;
+  int nodnbtr, numbnod, ntip, i, j, ntot, ntraits, dimrtrait, f, model, info = 0, neg = 0;
   char transa = 'T', transb = 'N';
-  double one = 1.0, zero = 0.0, sumbl;
+  double one = 1.0, zero = 0.0;
   numbnod = INTEGER(Nnode)[0];
   ntip = INTEGER(nsp)[0];
   ntraits = INTEGER(n)[0];
@@ -170,7 +170,7 @@ SEXP PIC_gen(SEXP x, SEXP n, SEXP Nnode, SEXP nsp, SEXP edge1, SEXP edge2, SEXP 
      
  for(f = 0; f < ntraits; f++){
    //temporary allocation of vector for blength
-   if(REAL(rate)[f]==0 & model==1 || REAL(rate)[f]==0 & model==2 ){
+   if(REAL(rate)[f]==0.0 & model==1 || REAL(rate)[f]==0.0 & model==2 ){
        model=7; //change to 3 for a general model
      }
      

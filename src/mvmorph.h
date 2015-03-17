@@ -16,17 +16,3 @@ extern void F77_CALL(dpftrf)(char *TRANSR, char *UPLO, int *N, double *A,int *IN
 extern void F77_CALL(dtfsm)(char *TRANSR, char *SIDE, char *UPLO, char *TRANS, char *DIAG, int *M, int *N, double *ALPHA, double *A, double *B, int *LDB);
 
 
-/* from OUCH package */
-static SEXP makearray (int rank, int *dim) {
-  int nprotect = 0;
-  int *dimp, k;
-  SEXP dimx, x;
-  PROTECT(dimx = NEW_INTEGER(rank)); nprotect++;
-  dimp = INTEGER(dimx); 
-  for (k = 0; k < rank; k++) dimp[k] = dim[k];
-  PROTECT(x = allocArray(REALSXP,dimx)); nprotect++;
-  UNPROTECT(nprotect);
-  return x;
-}
-
-

@@ -188,7 +188,7 @@ switch(method,
     sig<-unlist(sig)
     tree$edge.length<-tree$mapped.edge%*%sig
     # Compute the LLik
-    res<-.Call("PIC_gen", x=dat, n=as.integer(k), Nnode=as.integer(tree$Nnode), nsp=as.integer(n), edge1=as.integer(tree$edge[,1]), edge2=as.integer(tree$edge[,2]), edgelength=list(tree$edge.length), times=1, rate=rep(0,k), Tmax=1, Model=as.integer(6), mu=NULL, sigma=1)
+    res<-.Call("PIC_gen", x=dat, n=as.integer(k), Nnode=as.integer(tree$Nnode), nsp=as.integer(n), edge1=as.integer(tree$edge[,1]), edge2=as.integer(tree$edge[,2]), edgelength=list(tree$edge.length), times=1, rate=rep(0,k), Tmax=1, Model=as.integer(6), mu=1, sigma=1)
     logl<- -0.5 * ( n * k * log( 2 * pi) +  res[[5]] + n * res[[6]]  + res[[4]] )
     return(list(logl=logl,ancstate=res[[7]], sigma=res[[2]]))
         }

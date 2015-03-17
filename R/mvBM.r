@@ -4,269 +4,490 @@
 ##                                                                            ##
 ##  Created by Julien Clavel - 16-07-2013                                     ##
 ##  (julien.clavel@hotmail.fr/ julien.clavel@univ-lyon1.fr)                   ##
-##   require: phytools, ape, corpcor                                          ##
+##   require: phytools, ape, corpcor, spam                                    ##
 ##                                                                            ##
 ################################################################################
 
 
-mvBM<-function(tree,data,error=NULL,reg=NULL,model=c("BMM","BM1"),constraint=FALSE,simmap.tree=TRUE,scale.height=FALSE,method=c("L-BFGS-B","Nelder-Mead","subplex"),random.start=FALSE,control=list(maxit=20000),mod="ER",pseudoinverse=FALSE,diagnostic=TRUE,echo=TRUE){
+mvBM<-function(tree, data, error=NULL, model=c("BMM","BM1"),param=list(constraint=FALSE, smean=TRUE), method=c("rpf","pic","sparse","inverse","pseudoinverse"), scale.height=FALSE, optimization=c("L-BFGS-B","Nelder-Mead","subplex"), control=list(maxit=20000), precalc=NULL, diagnostic=TRUE, echo=TRUE){
 
 #set data as a matrix if a vector is provided instead
 if(!is.matrix(data)){data<-as.matrix(data)}
+# bind error to a vector
+if(!is.null(error)){error<-as.vector(error)}
 # select default model
 model<-model[1]
-# Use Moore-Penrose inverse
-if(pseudoinverse!=TRUE){ pseudoinverse<-solve }
+method<-method[1]
+# number of species (tip)
+n<-dim(data)[1]
+# number of variables
+k<-dim(data)[2]
+# method for the optimizer & algorithm
+optimization<-optimization[1]
+
+if(is.null(param[["constraint"]])==TRUE){constraint<-param$constraint<-FALSE}else{constraint<-param$constraint}
+
+
+##------------------------Precalc---------------------------------------------##
+if(is.null(precalc)==FALSE & class(precalc)=="mvmorph.precalc"){
+    tree<-precalc$tree
+    
+    if(is.null(tree[["mapped.edge"]])==TRUE){
+        model<-"BM1"
+        cat("No selective regimes mapped on the tree, only a BM1 model could be estimated","\n")
+    }
+    C1<-precalc$C1
+    D<-precalc$D
+    if(model=="BM1"){param$smean<-TRUE}
+    if(model=="BMM"){
+    C2<-precalc$C2
+    }
+    # number of selective regimes
+    if(model!="BM1"){
+        p<-length(C2)
+    }else{ p<-1 }
+    
+    if(method=="sparse"){
+        # Yale sparse format
+        JAr<-precalc$JAr
+        IAr<-precalc$IAr
+        ch<-precalc$ch
+        precalcMat<-precalc$V
+    }
+
+    
+}else{
+##------------------------Precalc-off-----------------------------------------##
 ##------------------------Create VCV matrix-----------------------------------##
-if(simmap.tree==FALSE & is.null(reg)){
-model<-"BM1"
-cat("No selective regimes specified for 'reg' argument, only a BM1 model could be estimated","\n")
+if(is.null(tree[["mapped.edge"]])==TRUE){
+    model<-"BM1"
+    cat("No selective regimes mapped on the tree, only a BM1 model could be estimated","\n")
 }
-if(simmap.tree==TRUE){
-
+# Scale the tree
 if(scale.height==TRUE){
-maxHeight<-max(nodeHeights(tree))
-tree$edge.length<-tree$edge.length/maxHeight
-tree$mapped.edge<-tree$mapped.edge/maxHeight
+    maxHeight<-max(nodeHeights(tree))
+    tree$edge.length<-tree$edge.length/maxHeight
+    if(model=="BMM")tree$mapped.edge<-tree$mapped.edge/maxHeight
 }
 
-# Compute vcv for SIMMAP tree
-	C1<-vcv.phylo(tree)
+if(method!="pic"){
+# Compute vcv for SIMMAP tree (replace in precalc?)
+    C1<-vcv.phylo(tree)
 	if(!is.null(rownames(data))) { 
 	 if(any(tree$tip.label==rownames(data))){
-  C1<-C1[rownames(data),rownames(data)]
+         C1<-C1[rownames(data),rownames(data)]
   }else if(echo==TRUE){
-  
-  cat("row names of the data matrix must match tip names of your phylogeny!","\n")
-  }}else if(echo==TRUE){
+    cat("row names of the data matrix must match tip names of your phylogeny!","\n")
+    }}else if(echo==TRUE){
 	cat("species in the matrix are assumed to be in the same order as in the phylogeny, otherwise specify rownames of 'data'","\n")
 	}
 		if(model=="BMM"){
-	multi.tre<-list()
+  multi.tre<-list()
   class(multi.tre)<-"multiPhylo"
-	C2<-array(dim=c(nrow(C1),ncol(C1),ncol(tree$mapped.edge)))
+  #Array method
+  #C2<-array(dim=c(nrow(C1),ncol(C1),ncol(tree$mapped.edge)))
+  C2<-list()
 	for(i in 1:ncol(tree$mapped.edge)){
 		multi.tre[[i]]<-tree
 		multi.tre[[i]]$edge.length<-tree$mapped.edge[,i]
 		multi.tre[[i]]$state<-colnames(tree$mapped.edge)[i]
 		temp<-vcv.phylo(multi.tre[[i]])
 		if(any(tree$tip.label==rownames(data))) { 
-		C2[,,i]<-temp[rownames(data),rownames(data)]
+		C2[[i]]<-temp[rownames(data),rownames(data)]
 		}else{
-		C2[,,i]<-temp
+		C2[[i]]<-temp
 		}
 	}
  }
-}else{
+        
+}else if(method=="pic"){
+            ind<-reorder(tree,"postorder", index.only=TRUE)
+            tree$edge<-tree$edge[ind,]
+            tree$edge.length<-tree$edge.length[ind]
+            value<-list(tree$edge.length)
+            
+            if(model=="BMM"){
+                tree$mapped.edge<-tree$mapped.edge[ind,]
+            }
+            # method for computing the log-likelihood
+            if(model=="BMM" & k!=1){
+                #mvMORPH-1.0.3
+                warning("Sorry, the \"pic\" method only work with univariate data for the BMM model ","\n","the \"rpf\" method has been used instead...","\n")
+                method<-"rpf"
+            }
+            C1<-NULL
+            C2<-NULL
+        }
 
-# Compute vcv for nodes-mapped tree
-  C1<-vcv.phylo(tree)
-  	if(!is.null(rownames(data))) { 
-  	 if(any(tree$tip.label==rownames(data))){
-  C1<-C1[rownames(data),rownames(data)]
-  }else{
-  cat("row names of the data matrix must match tip names of your phylogeny!","\n")
-  }  
-  }else if(echo==TRUE){
-	cat("species in the matrix are assumed to be in the same order as in the phylogeny, otherwise specify rownames of 'data'","\n")
-	}
-	 	if(model=="BMM"){
-	multi.tre<-list(); class(multi.tre)<-"multiPhylo"
-	# number of regimes taken from OUwie (Beaulieu et al. 2012)
-	regimes<-rerootingMethod(tree,reg,model=mod)
-  state<-numeric(nrow(regimes$marginal.anc))
-  # Use marginal ancestral state
-  for(i in 1:nrow(regimes$marginal.anc)){
-  state[i]<-which.max(regimes$marginal.anc[i,][])
-  }
-  tree$node.label<-state
-	tot.states<-factor(c(tree$node.label,as.numeric(as.factor(reg))))
-	k<-length(levels(tot.states))
-	int.states<-factor(tree$node.label)
-	tree$node.label=as.numeric(int.states)
-	      #Obtain root state and internal node labels
-				root.state<-tree$node.label[1]
-				int.state<-tree$node.label[-1]
-				n=max(tree$edge[,1])
-				#New tree matrix to be used for subsetting regimes
-				edges=cbind(c(1:(n-1)),tree$edge,nodeHeights(tree))
-				if(scale.height==TRUE){
-					edges[,4:5]<-edges[,4:5]/max(nodeHeights(tree))
-				}
-				edges=edges[sort.list(edges[,3]),]
-
-				mm<-c(as.numeric(as.factor(reg)),int.state)
-				mm<-as.numeric(mm)
-				regime <- matrix(0,nrow=length(mm),ncol=length(unique(mm)))
-				#Generates an indicator matrix from the regime vector
-				for (i in 1:length(mm)) {
-					regime[i,mm[i]] <- 1
-				}
-				#Finishes the edges matrix
-				edges=cbind(edges,regime)
-				edges=edges[sort.list(edges[,1]),]
-
-	C2<-array(dim=c(nrow(C1),ncol(C1),k))
-	for(i in 1:k){
-		multi.tre[[i]]<-tree
-
-		multi.tre[[i]]$edge.length<-edges[,5+i]*tree$edge.length
-
-		temp<-vcv.phylo(multi.tre[[i]])
-			if(!is.null(rownames(data))) { 
-		C2[,,i]<-temp[rownames(data),rownames(data)]
-		}else{
-		C2[,,i]<-temp
-		}
-	} 
-  }
-	}
 ##------------------------Parameters------------------------------------------##
-# number of species (tip)
-n<-dim(data)[1]
-# number of variables
-k<-dim(data)[2]
+
 # number of selective regimes
 if(model!="BM1"){
-p<-dim(C2)[3]
-}else{ p<-1 } # for calculating free parameters in the LRT test
+    p<-length(colnames(tree$mapped.edge))
+}else{ p<-1 }
 
-# bind data to a vector
-  if(!is.matrix(data)){
-data<-as.matrix(data)}
-# method for the optimizer
-method<-method[1]
-# Taken from phytools
-D <- matrix(0, n * k, k)
-    for (i in 1:(n * k)){
-     for (j in 1:k){
-      if ((j - 1) * n < i && i <= j * n){D[i, j] = 1 }
-      }
-      }
-# bind error to a vector
-if(!is.null(error)){error<-as.vector(error)}
+        
+# Compute the design matrix
+if(is.null(param[["smean"]])==TRUE){ param$smean<-TRUE }
+        if(model=="BM1"){param$smean<-TRUE}
+        D<-multD(tree,k,n,smean=param$smean)
+
+if(method=="sparse"){
+    V<-kronecker((matrix(1,k,k)+diag(k)), C1)
+    # spam object
+    precalcMat<-as.spam(V);
+    # precal the cholesky
+    if(is.null(param[["pivot"]])){pivot<-"MMD"}else{pivot<-param$pivot}
+    ch<-chol(precalcMat,pivot=pivot)
+    # Yale Sparse Format indices
+    JAr<-precalcMat@colindices-1
+    IAr<-precalcMat@rowpointers-1
+}else{
+    ch<-NULL
+    precalcMat<-NULL
+}
+
+
+}#end off-precalc
+
+# Define the variance-covariance functions
+if(model=="BMM"){
+switch(method,
+"rpf"={
+    bm_fun_matrix<-function(C,sig,dat,D,precalcMat,n,k,error,method){
+    V<-.Call("kroneckerSum", R=sig, C=C, Rrows=as.integer(k),  Crows=as.integer(n), dimlist=as.integer(p))
+    loglik<-loglik_mvmorph(dat,V,D,n,k,error=error,precalc=precalc,method=method,ch=ch,precalcMat=precalcMat,sizeD=ncol(D))
+    return(loglik)
+    }
+},
+"sparse"={
+    bm_fun_matrix<-function(C,sig,dat,D,precalcMat,n,k,error,method){
+    V<-.Call("kroneckerSumSpar", R=sig, C=C, Rrows=as.integer(k),  Crows=as.integer(n),  dimlist=as.integer(p), IA=IAr, JA=JAr, A=precalcMat@entries)
+    loglik<-loglik_mvmorph(dat,V,D,n,k,error=error,precalc=precalc,method=method,ch=ch,precalcMat=precalcMat,sizeD=ncol(D))
+    return(loglik)
+    }
+},
+"pseudoinverse"={
+    bm_fun_matrix<-function(C,sig,dat,D,precalcMat,n,k,error,method){
+    V<-.Call("kroneckerSum", R=sig, C=C, Rrows=as.integer(k),  Crows=as.integer(n), dimlist=as.integer(p))
+    loglik<-loglik_mvmorph(dat,V,D,n,k,error=error,precalc=precalc,method=method,ch=ch,precalcMat=precalcMat,sizeD=ncol(D))
+    return(loglik)
+    }
+},
+"inverse"={
+    bm_fun_matrix<-function(C,sig,dat,D,precalcMat,n,k,error,method){
+    V<-.Call("kroneckerSum", R=sig, C=C, Rrows=as.integer(k),  Crows=as.integer(n), dimlist=as.integer(p))
+    loglik<-loglik_mvmorph(dat,V,D,n,k,error=error,precalc=precalc,method=method,ch=ch,precalcMat=precalcMat,sizeD=ncol(D))
+    return(loglik)
+    }
+},
+"pic"={
+    bm_fun_matrix<-function(C,sig,dat,D,precalcMat,n,k,error,method){
+    # Mult only available for univariate case
+    k=1
+    sig<-unlist(sig)
+    tree$edge.length<-tree$mapped.edge%*%sig
+    # Compute the LLik
+    res<-.Call("PIC_gen", x=dat, n=as.integer(k), Nnode=as.integer(tree$Nnode), nsp=as.integer(n), edge1=as.integer(tree$edge[,1]), edge2=as.integer(tree$edge[,2]), edgelength=list(tree$edge.length), times=1, rate=rep(0,k), Tmax=1, Model=as.integer(6), mu=NULL, sigma=1)
+    logl<- -0.5 * ( n * k * log( 2 * pi) +  res[[5]] + n * res[[6]]  + res[[4]] )
+    return(list(logl=logl,ancstate=res[[7]], sigma=res[[2]]))
+        }
+})
+
+}else{
+
+switch(method,
+"rpf"={
+bm_fun_matrix<-function(C,sig,dat,D,precalcMat,n,k,error,method){
+    V<-.Call("kronecker_mvmorph", R=sig, C=C, Rrows=as.integer(k),  Crows=as.integer(n))
+    loglik<-loglik_mvmorph(dat,V,D,n,k,error=error,precalc=precalc,method=method,ch=ch,precalcMat=precalcMat,sizeD=ncol(D))
+    return(loglik)
+    }
+},
+"sparse"={
+bm_fun_matrix<-function(C,sig,dat,D,precalcMat,n,k,error,method){
+    V<-.Call("kroneckerSumSpar", R=list(sig), C=list(C), Rrows=as.integer(k),  Crows=as.integer(n),  dimlist=as.integer(1), IA=IAr, JA=JAr, A=precalcMat@entries)
+    loglik<-loglik_mvmorph(dat,V,D,n,k,error=error,precalc=precalc,method=method,ch=ch,precalcMat=precalcMat,sizeD=ncol(D))
+    return(loglik)
+    }
+},
+"pseudoinverse"={
+bm_fun_matrix<-function(C,sig,dat,D,precalcMat,n,k,error,method){
+    V<-.Call("kronecker_mvmorph", R=sig, C=C, Rrows=as.integer(k),  Crows=as.integer(n))
+    loglik<-loglik_mvmorph(dat,V,D,n,k,error=error,precalc=precalc,method=method,ch=ch,precalcMat=precalcMat,sizeD=ncol(D))
+    return(loglik)
+    }
+},
+"inverse"={
+bm_fun_matrix<-function(C,sig,dat,D,precalcMat,n,k,error,method){
+    V<-.Call("kronecker_mvmorph", R=sig, C=C, Rrows=as.integer(k),  Crows=as.integer(n))
+    loglik<-loglik_mvmorph(dat,V,D,n,k,error=error,precalc=precalc,method=method,ch=ch,precalcMat=precalcMat,sizeD=ncol(D))
+    return(loglik)
+    }
+},
+"pic"={
+bm_fun_matrix<-function(C,sig,dat,D,precalcMat,n,k,error,method){
+    res<-.Call("PIC_gen", x=dat, n=as.integer(k), Nnode=as.integer(tree$Nnode), nsp=as.integer(n), edge1=as.integer(tree$edge[,1]), edge2=as.integer(tree$edge[,2]), edgelength=list(tree$edge.length), times=1, rate=rep(0,k), Tmax=1, Model=as.integer(6), mu=NULL, sigma=sig)
+    logl<- -0.5 * ( n * k * log( 2 * pi) +  res[[5]] + n * res[[6]]  + res[[4]] )
+    return(list(logl=logl,ancstate=res[[7]], sigma=res[[2]]))
+    }
+}
+)
+# End if
+}
+
+# sigma matrix prameterization
+
+buildSigma<-function(par,index.mat=NULL,sig=NULL,model,constraint){
+    if(constraint==FALSE){
+        switch(model,
+        "BMM"={
+            sig[]<-c(par)[index.mat]
+            sigma<-lapply(1:p,function(x){ sym.par(sig[x,])})
+        },
+        "BM1"={
+            sigma<-sym.par(par)
+        })
+    }else if(constraint=="diagonal"){
+        
+        switch(model,
+        "BMM"={
+            sig[] <- c(par)[index.mat]
+            sigma<-lapply(1:p,function(x){ diag(diag(sig[x,]%*%t(sig[x,])))})
+        },
+        "BM1"={
+            sigma<-diag(diag(par%*%t(par)))
+        })
+        
+    }else{
+        switch(model,
+        "BMM"={
+            sig[] <- c(par)[index.mat]
+            sigma<-lapply(1:p,function(x){ tcrossprod(build.chol(sig[x,],k))})
+        },
+        "BM1"={
+            sigma<-tcrossprod(build.chol(par,k))
+        })
+    }
+    
+    return(sigma)
+}
+
 
 ##------------------LogLikelihood function for multiple rates per traits------##
 
-lik.Mult<-function(param,dat,C,D,index.mat,sig,error){ ##
-  n<-dim(dat)[1] # nombre d'individus (tip)
-  k<-dim(dat)[2] # nombre de variables
-  p<-dim(C)[3] # correspond au nombre de sous arbres i.e. le nombre de régimes
+lik.Mult<-function(par,dat,C,D,index.mat,sig,error, p, k, n, precalcMat, method,constraint){
 
-  # matrice de taux d'évolutions
- 	sig[] <- c(param)[index.mat]
-
-  #calcul de la matrice de variance pour les différents mappings
-  sig3D<-array(dim=c(k,k,p))
-
-  for(i in 1:p){   sig3D[,,i]<-sym.par(sig[i,])} # construction d'une matrice positive definite
-
-  # multivariate vcv matrix
-  V<-matrix(0,n*k,n*k)
-  for(i in 1:p){
-    Cmat<-C[,,i]
-    Sig<-sig3D[,,i]
-    V<-V+kronecker(Sig,Cmat)
-  }
-  # add measurement error
-  if(!is.null(error)){
-			diag(V)<-diag(V)+error
-		}
-  #Inversion de la matrice de covariance ajustée pour les différentes branches
-  dat<-as.vector(dat)
-  a <- pseudoinverse(t(D) %*% pseudoinverse(V) %*% D) %*% (t(D) %*% pseudoinverse(V) %*%dat)
-  ##Likelihood
-  logL <- -t(dat - D %*% a) %*% pseudoinverse(V) %*% (dat - D %*% a)/2 - n * k * log(2 * pi)/2 - determinant(V)$modulus[1]/2
-
-  list(loglik=-logL, ancstate=a)
+  loglik<-bm_fun_matrix(C,buildSigma(par,index.mat,sig,model,constraint),dat,D,precalcMat,n,k,error,method)
+  
+  list(loglik=-loglik$logl, ancstate=loglik$anc)
   
 }
 ##---------------------Loglik BM1---------------------------------------------##
-lik.BM1<-function(param,dat,C,D,error){ ##
-  n<-dim(dat)[1] # nombre d'individus (tip)
-  k<-dim(dat)[2] # nombre de variables
-  # matrice de taux d'évolutions
- 	sig<-sym.par(param) 
-  # multivariate vcv matrix
-  V<-kronecker(sig,C)
-  # add measurement error
-  if(!is.null(error)){
-			diag(V)<-diag(V)+error
-		}
-  #Inversion de la matrice de covariance ajustée pour les différentes branches
-  dat<-as.vector(dat)
-  a <- pseudoinverse(t(D) %*% pseudoinverse(V) %*% D) %*% (t(D) %*% pseudoinverse(V) %*%dat)
-  ##Likelihood
-  logL <- -t(dat - D %*% a) %*% pseudoinverse(V) %*% (dat - D %*% a)/2 - n * k * log(2 * pi)/2 - determinant(V)$modulus[1]/2
-  list(loglik=-logL, ancstate=a)
+lik.BM1<-function(par,dat,C,D,error,method,precalcMat,n,k, constraint){ ##
+  
+  loglik<-bm_fun_matrix(C,buildSigma(par,NULL,NULL,model,constraint),dat,D,precalcMat,n,k,error,method)
+  
+  list(loglik=-loglik$logl, ancstate=loglik$anc)
 }
+
+
 if(model=="BMM"){
+        if(param$constraint==FALSE){
 ##---------------------Optimization BMM---------------------------------------##
-# number of parameters
-npar=(k*(k+1)/2)
-# sigma matrix
-sig<-matrix(1,p,npar)
+        # number of parameters
+        npar=(k*(k+1)/2)
+        # sigma matrix
+        sig<-matrix(1,p,npar)
 
-# index matrix of rates
-index.mat<-matrix(1:length(sig),p,npar,byrow=TRUE)
+        # index matrix of rates
+        index.mat<-matrix(1:length(sig),p,npar,byrow=TRUE)
 
-# initial values for the optimizer
-sig1<-estVarBM(as.matrix(data),C1)
-sig1<-sym.unpar(sig1)
+        # initial values for the optimizer
+        if(is.null(param[["sigma"]])==TRUE){
+            sig1<-varBM(tree,data,n,k)
+            sig1<-sym.unpar(sig1)
+            starting<-unlist(lapply(1:p,function(x){sig1}))
+        }else{
+            if(length(param$sigma[[1]])==npar){
+                starting<-unlist(param$sigma)
+            }else{
+                starting<-unlist(lapply(1:length(param$sigma),function(x){sym.unpar(param$sigma[[x]])}))
+            }
+            if(length(starting)!=(p*npar)){stop("The number of starting values for the rates matrix do not match, see ?mvBM for providing user specified starting values")}
+        }
+        
+##---------------------Optimization BMM diagonal------------------------------##
+        }else if(param$constraint=="diagonal"){
+            # number of parameters
+            npar=k
+            # sigma matrix
+            sig<-matrix(1,p,npar)
+            
+            # index matrix of rates
+            index.mat<-matrix(1:length(sig),p,npar,byrow=TRUE)
+            
+            # initial values for the optimizer
+            if(is.null(param[["sigma"]])==TRUE){
+                sig1<-varBM(tree,data,n,k)
+                sig1<-diag(sig1)
+                starting<-unlist(lapply(1:p,function(x){sig1}))
+            }else{
+                if(length(param$sigma[[1]])==npar){
+                    starting<-unlist(param$sigma)
+                }else{
+                    starting<-unlist(lapply(1:length(param$sigma),function(x){diag(param$sigma[[x]])}))
+                }
+                if(length(starting)!=(p*npar)){stop("The number of starting values for the rates matrix do not match, see ?mvBM for providing user specified starting values")}
+            }
+        }else{
+##---------------------Optimization BMM constrained---------------------------##
+        # number of parameters for the constrained model
+        npar=(k*(k-1)/2)+1
+        # sigma matrix
+        sig<-matrix(1,p,npar)
+        # index matrix
+        index.mat<-matrix(1:length(sig),p,npar,byrow=TRUE)
+        
+        if(is.null(param[["sigma"]])==TRUE){
+            # initial values for the optimizer
+            sig1<-varBM(tree,data,n,k)
+            # starting values following Adams (2012)
+            sigma.mn<-mean(diag(sig1))
+            R.offd<-rep(0,(k*(k-1)/2))
+            # # m?me chose mais pour chaque regimes dans la matrice index
+            valstart=c(sigma.mn,R.offd)
+            starting<-NULL
+            for(i in 1:p){
+                starting<-c(starting,valstart)
+            }
+        }else{ ## starting values are provided
+            if(length(param$sigma[[1]])==npar){
+                starting<-unlist(param$sigma)
+            }else{
+                starting<-unlist(lapply(1:length(param$sigma),function(x){c(param$sigma[[x]][[1]],param$sigma[[x]][lower.tri(param$sigma[[x]])])}))
+            }
+            if(length(starting)!=(p*npar)){stop("The number of starting values for the rates matrix do not match, see ?mvBM for providing user specified starting values")}
+        }
 
-starting<-NULL
-for(i in 1:p){
-  starting<-c(starting,sig1)
-}
-if(random.start==TRUE){startval<-runif(length(starting))}else{startval<-rep(1,length(starting))}
+    }
 # Optimizer
-if(method!="subplex"){
-estim<-optim(par=starting*startval,fn=function (par) { lik.Mult(param=par, dat=data, C=C2, D=D, index.mat=index.mat,sig=sig, error=error)$loglik },control=control,hessian=TRUE,method=method)   #mettre les options maxit et method dans le menu
+if(optimization!="subplex"){
+estim<-optim(par=starting,fn=function (par) { lik.Mult(par=par, dat=data, C=C2, D=D, index.mat=index.mat,sig=sig, error=error, p=p, k=k, n=n, precalcMat=precalcMat, method=method, constraint=constraint)$loglik },control=control,hessian=TRUE,method=optimization)   #mettre les options maxit et method dans le menu
 }else{
-estim<-subplex(par=starting*startval,fn=function (par){lik.Mult(param=par,dat=data,C=C2,D=D,index.mat=index.mat,sig=sig,error=error)$loglik},control=control,hessian=TRUE)   #mettre les options maxit et method dans le menu
+estim<-subplex(par=starting,fn=function (par){lik.Mult(par=par,dat=data,C=C2, D=D, index.mat=index.mat, sig=sig, error=error, p=p, k=k, n=n, precalcMat=precalcMat, method=method, constraint=constraint)$loglik},control=control,hessian=TRUE)   #mettre les options maxit et method dans le menu
 }
 
 }else if(model=="BM1"){
 ##---------------------Optimization BM1---------------------------------------##
-# number of parameters
-npar=(k*(k+1)/2)
+    if(constraint==FALSE){
+        # number of parameters
+        npar=(k*(k+1)/2)
+        # initial values for the optimizer
+        if(is.null(param[["sigma"]])==TRUE){
+            sig1<-varBM(tree,data,n,k)
+            starting<-sym.unpar(sig1)
+        }else{
+            if(length(param$sigma)==npar){
+                starting<-param$sigma
+            }else{
+                starting<-sym.unpar(param$sigma)
+            }
+            if(length(starting)!=(npar)){stop("The number of starting values for the rates matrix do not match, see ?mvBM for providing user specified starting values")}
+        }
+    }else if(constraint=="diagonal"){
+##---------------------Optimization BM1 diagonal------------------------------##
+npar=k
 # initial values for the optimizer
-sig1<-estVarBM(as.matrix(data),C1)
-sig1<-sym.unpar(sig1)
-if(random.start==TRUE){startval<-runif(length(sig1))}else{startval<-rep(1,length(sig1))}
-# Optimizer
-if(method!="subplex"){
-estim<-optim(par=sig1*startval,fn=function(par){lik.BM1(param=par,dat=data,C=C1,D=D,error=error)$loglik},control=control,hessian=TRUE,method=method) 
+sig1<-varBM(tree,data,n,k)
+# starting values following Adams (2012)
+sigma.mn<-diag(sig1)
+if(is.null(param[["sigma"]])==TRUE){
+    starting=c(sigma.mn)
+    
 }else{
-estim<-subplex(par=sig1*startval,fn=function(par){lik.BM1(param=par,dat=data,C=C1,D=D,error=error)$loglik},control=control,hessian=TRUE) 
+    if(length(param$sigma)==npar){
+        starting<-param$sigma
+    }else{
+        starting<-c(param$sigma[[1]][[1]],param$sigma[[1]][lower.tri(param$sigma[[1]])])
+    }
+    if(length(starting)!=(npar)){stop("The number of starting values for the rates matrix do not match, see ?mvBM for providing user specified starting values")}
+    
+}
+
+    }else{
+##---------------------Optimization BM1 constrained---------------------------##
+        #Same as Adams 2012
+        npar=(k*(k-1)/2)+1
+        # initial values for the optimizer
+        sig1<-varBM(tree,data,n,k)
+        # starting values following Adams (2012)
+        sigma.mn<-mean(diag(sig1))
+        R.offd<-rep(0,(k*(k-1)/2))
+        if(is.null(param[["sigma"]])==TRUE){
+            starting=c(sigma.mn,R.offd)
+            
+        }else{
+            if(length(param$sigma)==npar){
+                starting<-param$sigma
+            }else{
+                starting<-c(param$sigma[[1]][[1]],param$sigma[[1]][lower.tri(param$sigma[[1]])])
+            }
+            if(length(starting)!=(npar)){stop("The number of starting values for the rates matrix do not match, see ?mvBM for providing user specified starting values")}
+            
+        }
+    }
+
+# Optimizer
+if(optimization!="subplex"){
+estim<-optim(par=starting,fn=function(par){lik.BM1(par=par,dat=data,C=C1,D=D,error=error,method=method,precalcMat=precalcMat,n=n,k=k,constraint=constraint)$loglik},control=control,hessian=TRUE,method=optimization)
+}else{
+estim<-subplex(par=starting,fn=function(par){lik.BM1(par=par,dat=data,C=C1,D=D,error=error,method=method,precalcMat=precalcMat,n=n,k=k,constraint=constraint)$loglik},control=control,hessian=TRUE)
 } 
 }
+
 ##-----------------Summarizing results----------------------------------------##
 if(model=="BMM"){
-matResults<-matrix(1,p,npar)
-matResults[]<-c(estim$par)[index.mat]
+matResults<-buildSigma(estim$par,index.mat,sig,model,constraint)
 resultList<-array(dim = c(k, k, p))
 states=vector()
  for(i in 1:p){
- resultList[,,i]<-sym.par(matResults[i,])
-  states[i]<-multi.tre[[i]]$state
+ resultList[,,i]<-matResults[[i]]
+ states[i]<-colnames(tree$mapped.edge)[i]#multi.tre[[i]]$state
 }
 dimnames(resultList)<-list(colnames(data), colnames(data), states)
 
 #ancestral states estimates
-anc<-lik.Mult(param=estim$par,dat=data,C=C2,D=D,index.mat=index.mat,sig=sig,error=error)$ancstate
+anc<-lik.Mult(par=estim$par,dat=data,C=C2,D=D,index.mat=index.mat,sig=sig,error=error, p=p, k=k, n=n, precalcMat=precalcMat, method=method,constraint=constraint)$ancstate
+if(param$smean==TRUE){
+    anc<-matrix(anc,nrow=1)
+    colnames(anc)<-colnames(data)
+    rownames(anc)<-"theta"
+}else{
+    anc<-matrix(anc,nrow=p)
+    colnames(anc)<-colnames(data)
+    rownames(anc)<-colnames(tree$mapped.edge)
+}
+
 }else if(model=="BM1"){
- resultList<-sym.par(estim$par)
+resultList<-buildSigma(estim$par,NULL,NULL,model,constraint)
  colnames(resultList)<-colnames(data)
  rownames(resultList)<-colnames(data)
  #ancestral states estimates
-anc<-lik.BM1(param=estim$par,dat=data,C=C1,D=D,error=error)$ancstate
+anc<-matrix(lik.BM1(par=estim$par,dat=data,C=C1,D=D,error=error, k=k, n=n, precalcMat=precalcMat, method=method,constraint=constraint)$ancstate,nrow=1)
+colnames(anc)<-colnames(data)
+rownames(anc)<-"theta"
 }
+
 # LogLikelihood
 LL<--estim$value
 # models parameters
 if(model=="BMM"){
-nparam=k+length(unique(index.mat))  #k+(p*k) = p for each regimes, k for each rates, k for each ancestral states   or(k+length(unique(index.mat))?
+    if(param$smean==TRUE){
+        nparam=k+length(unique(index.mat))#k+(p*k) = p for each regimes, k for each rates, k for each ancestral states   or(k+length(unique(index.mat))?
+    }else{
+        nparam=k*p+length(unique(index.mat))
+    }
 }else if(model=="BM1"){
 nparam=k+length(estim$par)        #k+k= k for each rates and k for each ancestral states
 }
@@ -277,7 +498,7 @@ AICc<-AIC+((2*nparam*(nparam+1))/(n-nparam-1)) #Hurvich et Tsai, 1989
 ##---------------------Diagnostics--------------------------------------------##
 
 if(estim$convergence==0 & diagnostic==TRUE){  
-cat("\n","successful convergence of the optimizer","\n") 
+cat("successful convergence of the optimizer","\n")
 }else if(estim$convergence==1 & diagnostic==TRUE){  
 cat("\n","maximum limit iteration has been reached, please consider increase maxit","\n")
 }else if(diagnostic==TRUE){  
@@ -298,218 +519,40 @@ cat("a reliable solution has been reached","\n")}
 ##-------------------Print results--------------------------------------------##
 if(echo==TRUE){
 cat("\n")
-cat("Summary results for multiple rates",model,"model","\n")
+if(constraint==TRUE | constraint=="diagonal"){
+cat("-- Summary results for multiple constrained rates",model,"model --","\n")
+}else{
+cat("-- Summary results for multiple rates",model,"model --","\n")
+}
 cat("LogLikelihood:","\t",LL,"\n")
 cat("AIC:","\t",AIC,"\n")
 cat("AICc:","\t",AICc,"\n")
-cat(nparam,"parameters")
+cat(nparam,"parameters","\n")
 cat("\n")
 cat("Estimated rates matrix","\n")
+cat("______________________","\n")
 print(resultList)
 cat("\n")
-cat("Estimated ancestral state","\n")
-cat(anc)
+cat("Estimated root state","\n")
+cat("______________________","\n")
+print(anc)
 cat("\n")
-}
-
-if(constraint==TRUE){
-##-------------------Choleski constrained model-------------------------------##
-##--------LogLikelihood function constrained for a unique rate per traits-----##
-
-lik.Mult.Const<-function(param,dat,C,D,index.mat,sig,error){ ##
-  n<-dim(dat)[1] # nombre d'individus (tip)
-  k<-dim(dat)[2] # nombre de variables
-  p<-dim(C)[3] # correspond au nombre de sous arbres i.e. le nombre de régimes
-
-  # matrice de taux d'évolutions
- 	sig[] <- c(param)[index.mat]
-
-  #calcul de la matrice de variance pour les différents mappings
-  sig3D<-array(dim=c(k,k,p))
-
-  for(i in 1:p){
-  low.chol<-build.chol(sig[i,],k)
-  R<-low.chol%*%t(low.chol)
-  sig3D[,,i]<-R
-  }
-
-  # multivariate vcv matrix
-  V<-matrix(0,n*k,n*k)
-  for(i in 1:p){
-    Cmat<-C[,,i]
-    Sig<-sig3D[,,i]
-    V<-V+kronecker(Sig,Cmat)
-  }
-  # add measurement error
-  if(!is.null(error)){
-			diag(V)<-diag(V)+error
-		}
-  
-  dat<-as.vector(dat)
-  #Inversion de la matrice de covariance ajustée pour les différentes branches
-  a <- pseudoinverse(t(D) %*% pseudoinverse(V) %*% D) %*% (t(D) %*% pseudoinverse(V) %*%dat)
-  ##Likelihood
-  logL <- -t(dat - D %*% a) %*% pseudoinverse(V) %*% (dat - D %*% a)/2 - n * k * log(2 * pi)/2 - determinant(V)$modulus[1]/2
-  list(loglik=-logL, ancstate=a)
-}
-##---------------------LogLik BM1 Constraints---------------------------------##
-lik.BM1.cons<-function(param,dat,C,D,error){ ##
-  n<-dim(dat)[1] # nombre d'individus (tip)
-  k<-dim(dat)[2] # nombre de variables
-  # matrice de taux d'évolutions
- 	low.chol<-build.chol(param,k)
-  sig<-low.chol%*%t(low.chol)
-  # multivariate vcv matrix
-  V<-kronecker(sig,C)
-  # add measurement error
-  if(!is.null(error)){
-			diag(V)<-diag(V)+error
-		}
-  #Inversion de la matrice de covariance ajustée pour les différentes branches
-  dat<-as.vector(dat)
-  a <- pseudoinverse(t(D) %*% pseudoinverse(V) %*% D) %*% (t(D) %*% pseudoinverse(V) %*%dat)
-  ##Likelihood
-  logL <- -t(dat - D %*% a) %*% pseudoinverse(V) %*% (dat - D %*% a)/2 - n * k * log(2 * pi)/2 - determinant(V)$modulus[1]/2
-  list(loglik=-logL, ancstate=a)
-}
-
-if(model=="BMM"){
-##---------------------Optimization-------------------------------------------##
-
-# number of parameters for the constrained model
-npar.cons=(k*(k-1)/2)+1
-# sigma matrix
-sigc<-matrix(1,p,npar.cons)
-# index matrix
-index.mat.cons<-matrix(1:length(sigc),p,npar.cons,byrow=TRUE)
-# initial values for the optimizer
-sig1<-estVarBM(as.matrix(data),C1)
-# starting values following Adams (2012)
-sigma.mn<-mean(diag(sig1))
-R.offd<-rep(0,(k*(k-1)/2))
-# # même chose mais pour chaque regimes dans la matrice index
-valstart=c(sigma.mn,R.offd)
-starting.cons<-NULL
-for(i in 1:p){
-  starting.cons<-c(starting.cons,valstart)
-}
-if(random.start==TRUE){startval<-runif(length(starting.cons))}else{startval<-rep(1,length(starting.cons))}
-# Optimizer for constrained model
-if(method!="subplex"){
-estim.const<-optim(par=starting.cons*startval,fn=function(par){lik.Mult.Const(param=par,dat=data,C=C2,D=D,index.mat=index.mat.cons,sig=sigc,error=error)$loglik},control=control,hessian=TRUE,method=method)
-}else{
-estim.const<-subplex(par=starting.cons*startval,fn=function(par){lik.Mult.Const(param=par,dat=data,C=C2,D=D,index.mat=index.mat.cons,sig=sigc,error=error)$loglik},control=control,hessian=TRUE)
-}
-}else if(model=="BM1"){
-##---------------------Optimization BM1 constrained---------------------------##
-#Same as Adams 2012
-# initial values for the optimizer
-sig1<-estVarBM(as.matrix(data),C1)
-# starting values following Adams (2012)
-sigma.mn<-mean(diag(sig1))
-R.offd<-rep(0,(k*(k-1)/2))
-# # même chose mais pour chaque regimes dans la matrice index
-valstart=c(sigma.mn,R.offd)
-if(random.start==TRUE){startval<-runif(length(valstart))}else{startval<-rep(1,length(valstart))}
-# Optimizer for constrained model
-if(method!="subplex"){
-estim.const<-optim(par=valstart*startval,fn=function(par){lik.BM1.cons(param=par,dat=data,C=C1,D=D,error=error)$loglik},control=control,hessian=TRUE,method=method)
-}else{
-estim.const<-subplex(par=valstart*startval,fn=function(par){lik.BM1.cons(param=par,dat=data,C=C1,D=D,error=error)$loglik},control=control,hessian=TRUE)
-}
-}
-##---------------------Diagnostics--------------------------------------------##
-
-if(estim.const$convergence==0 & diagnostic==TRUE){  
-cat("\n","successful convergence of the optimizer for the constrained model","\n") 
-}else if(estim.const$convergence==1 & diagnostic==TRUE){
-cat("\n","maximum limit iteration has been reached, please consider increase maxit","\n")
-}else if(diagnostic==TRUE){
-cat("\n","convergence of the optimizer has not been reached, try simpler constrained model","\n")
-}
-# Hessian eigen decomposition to check the derivatives
-hess.cons<-eigen(estim.const$hessian)$values
-if(any(hess.cons<0)){
-hess.val.cons<-1
-if(diagnostic==TRUE){
-cat("unreliable solution has been reached, check hessian eigenvectors or try simpler constrained model","\n") }
-}else{
-hess.val.cons<-0
-if(diagnostic==TRUE){
-cat("a reliable solution has been reached","\n")}
-}
-
-##-----------------Summarizing results----------------------------------------##
-
-# LogLikelihood
-LLc<--estim.const$value
-
-if(model=="BMM"){
-nparamc=k+length(unique(index.mat.cons)) #p+k = p for each regimes, k for each ancestral states, 1 rates   #
-}else if(model=="BM1"){
-nparamc=k+length(estim.const$par)   #1+k = k for each ancestral states, 1 for rates
-}
-# maximum likelihood estimates of rates matrix
-if(model=="BMM"){
-matResultsC<-matrix(1,p,npar.cons)
-matResultsC[]<-c(estim.const$par)[index.mat.cons]
-resultListC<-array(dim = c(k, k, p))
-statesC=vector()
- for(i in 1:p){
- low.chol<-build.chol(matResultsC[i,],k)
- R<-low.chol%*%t(low.chol)
- resultListC[,,i]<-R
-  statesC[i]<-multi.tre[[i]]$state
-}
-dimnames(resultListC)<-list(colnames(data), colnames(data), statesC)
-
-# ancestral states estimates
-anc.c<-lik.Mult.Const(param=estim.const$par,dat=data,C=C2,D=D,index.mat=index.mat.cons,sig=sigc,error=error)$ancstate     
-}else if(model=="BM1"){
- low.chol<-build.chol(estim.const$par,k)
- resultListC<-low.chol%*%t(low.chol)
- colnames(resultListC)<-colnames(data)
- rownames(resultListC)<-colnames(data)
-# ancestral states estimates
-anc.c<-lik.BM1.cons(param=estim.const$par,dat=data,C=C1,D=D,error=error)$ancstate
-}
-# AIC
-Cons.AIC<--2*LLc+2*nparamc
-# AIC corrected
-Cons.AICc<-Cons.AIC+((2*nparamc*(nparamc+1))/(n-nparamc-1)) #Hurvich et Tsai, 1995
-
-##-------------------Print results--------------------------------------------##
-if(echo==TRUE){
-cat("\n")
-cat("Summary results for the constrained",model,"model","\n")
-cat("LogLikelihood:","\t",LLc,"\n")
-cat("AIC:","\t",Cons.AIC,"\n")
-cat("AICc:","\t",Cons.AICc,"\n")
-cat(nparamc,"parameters")
-cat("\n")
-cat("Estimated rates matrix","\n")
-print(resultListC)
-cat("\n")
-cat("Estimated ancestral state","\n")
-cat(anc.c,"\n")
-cat("\n")
-} 
-##-------------------LRT comparison of the models-----------------------------##
-
-LRT<-(2*((LL-LLc)))
-#nvariables-1 degrees of freedom
-LRT.prob<-pchisq(LRT,(k-1)*p,lower.tail=FALSE)  
-if(echo==TRUE){ 
-cat("LRT p-value:",LRT.prob,"\n")
-}
-}# end of constrained model
-
+    }
+##-------------------Save infos in parameters---------------------------------##
+param$model<-if(constraint==TRUE){paste(model," constrained")}else{model}
+param$nparam<-nparam
+param$nbspecies<-n
+param$ntraits<-k
+param$nregimes<-p
+param$method<-method
+param$optimization<-optimization
+param$traits<-colnames(data)
 ##-------------------Store results--------------------------------------------##
 
-if(constraint==TRUE){
- results<-list(LogLik.m=LL, AIC.mult=AIC, AICc.mult=AICc, rates.m=resultList, anc=anc, LogLik.cons=LLc, AIC.cons=Cons.AIC, AICc.cons=Cons.AICc, rates.cons=resultListC, anc.cons=anc.c, LRT=LRT, pval=LRT.prob, convergence=estim$convergence, convergence.const=estim.const$convergence, hess.values=hess.value, hess.values.cons=hess.val.cons)
-}else{
- results<-list(LogLik.m=LL, AIC.mult=AIC, AICc.mult=AICc, rates.m=resultList, anc=anc,convergence=estim$convergence, hess.values=hess.value)
-}
+ results<-list(LogLik=LL, AIC=AIC, AICc=AICc, theta=anc, sigma=resultList ,convergence=estim$convergence, hessian=estim$hessian, hess.values=hess.value, param=param)
+
+
+class(results)<-c("mvmorph","bm")
+invisible(results)
 #End
 }

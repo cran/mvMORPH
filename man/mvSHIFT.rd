@@ -2,103 +2,101 @@
 \alias{mvSHIFT}
 %- Also NEED an '\alias' for EACH other topic documented here.
 \title{
-Multivariate change in mode of continuous traits evolution 
+Multivariate change in mode of continuous traits evolution
 %%  ~~function to do ... ~~
 }
 \description{
-This function allow the fitting of different models of evolution after a fixed point. This allows fitting model of change in mode of evolution following a given event.
+This function fits different models of evolution after a fixed point. This allows fitting models of change in mode of evolution following a given event.
 %%  ~~ A concise (1-5 lines) description of what the function does. ~~
 }
 \usage{
-mvSHIFT(tree, data, age = NULL, error = NULL, sigma = NULL, alpha = NULL, 
- sig = NULL, model = c("ER", "RR", "EC", "RC", "SR"), scale.height = FALSE, 
- diagnostic = TRUE, method = c("L-BFGS-B", "Nelder-Mead", "subplex"), 
- pseudoinverse=FALSE, echo = TRUE, control=list(maxit=20000))
+mvSHIFT(tree, data, error = NULL, param = list(age = NULL, sigma = NULL,
+        alpha = NULL, sig = NULL, beta = NULL), model = c("ER", "RR", "EC",
+        "RC", "SR", "EBOU", "OUEB", "EBBM", "BMEB"), method = c("rpf",
+        "sparse", "inverse", "pseudoinverse"), scale.height = FALSE,
+        optimization = c("L-BFGS-B", "Nelder-Mead", "subplex"), control =
+        list(maxit = 20000), precalc = NULL, diagnostic = TRUE, echo = TRUE)
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
   \item{tree}{
-   Phylogenetic tree with shift mapped. (See "make.era.map" function from "phytools" package). A "phylo" object can be used if the "age" argument is provided.
+ Phylogenetic tree with shift mapped. (See "make.era.map" function from "phytools" package). A "phylo" object can be used if the "age" argument is provided in the "param" list.
 %%     ~~Describe \code{tree} here~~
 }
   \item{data}{
-   Matrix or data frame with species in rows and continuous traits in columns
+Matrix or data frame with species in rows and continuous traits in columns.
 %%     ~~Describe \code{data} here~~
 }
-  \item{age}{
-   Age at which the shift in mode of evolution occur (in unit of time of the provided tree)
-%%     ~~Describe \code{age} here~~
-}
   \item{error}{
-   Matrix or data frame with species in rows and continuous traits standard error (squared) in columns
-  
+Matrix or data frame with species in rows and continuous trait standard errors (squared) in columns.
 %%     ~~Describe \code{error} here~~
 }
-  \item{sigma}{
-   Starting values of the sigma matrix of the OU process before optimization.(optional)
-%%     ~~Describe \code{sigma} here~~
-}
-  \item{alpha}{
-   Starting values of the alpha matrix of the OU process before optimization.(optional)
-%%     ~~Describe \code{alpha} here~~
-}
-  \item{sig}{
-   Starting values of the sigma matrix of the BM process after or before the time shift (in "RR" or "RC" models, see details).(optional)
-%%     ~~Describe \code{sig} here~~
+  \item{param}{
+List of arguments to be passed to the function. See details.
+%%     ~~Describe \code{param} here~~
 }
   \item{model}{
-   Choose between "RR" for ecological release and radiate model, "ER" for ecological release model, "EC" for ecologically constrained model, "RC" for constrained model after radiation, or "SR" for shift rate model (see details).
+Choose between the different models "OUBM", "BMOU", "EBOU", "OUEB", "BMEB", "EBBM"... See details below.
 %%     ~~Describe \code{model} here~~
 }
-  \item{scale.height}{
-   Whether the tree should be scaled to length 1
-%%     ~~Describe \code{scale.height} here~~
-}
-  \item{diagnostic}{
-  Whether the diagnostics of convergences should be returned
-%%     ~~Describe \code{diagnostic} here~~
-}
   \item{method}{
-  Methods used by the optimization function. (see ?optim and ?subplex for details).
+Choose between "rpf", "sparse", "inverse", or "pseudoinverse" for computing the log-likelihood during the fitting process. See details.
 %%     ~~Describe \code{method} here~~
 }
- \item{pseudoinverse}{
-  Whether Moore-Penrose pseudoinverse should be used in calculation (slower)
-%%     ~~Describe \code{pseudoinverse} here~~
+  \item{scale.height}{
+Whether the tree should be scaled to length 1 or not.
+%%     ~~Describe \code{scale.height} here~~
 }
-  \item{echo}{
-  Should the results be returned
-%%     ~~Describe \code{echo} here~~
+  \item{optimization}{
+Methods used by the optimization routines. (See ?optim and ?subplex for details).
+%%     ~~Describe \code{optimization} here~~
 }
   \item{control}{
-  Max. bound for the number of iteration of the optimizer; other options can be fixed on the list (see ?optim or ?subplex).
+Max. bound for the number of iteration of the optimizer; other options can be fixed on the list (See ?optim and ?subplex for details).
 %%     ~~Describe \code{control} here~~
+}
+  \item{precalc}{
+Optional. precalculation of fixed parameters. See ?mvmorph.Precalc for details.
+%%     ~~Describe \code{precalc} here~~
+}
+  \item{diagnostic}{
+Whether the diagnostics of convergence should be returned or not.
+%%     ~~Describe \code{diagnostic} here~~
+}
+  \item{echo}{
+Whether the results must be returned or not.
+%%     ~~Describe \code{echo} here~~
 }
 }
 \details{
-The mvSHIFT function fit a shift in mode or rate of evolution at a fixed point in time, as previously proposed by some authors (O'Meara et al. 2006; O'Meara, 2012; Slater, 2013). Shift in mode of evolution could be mapped on a modified "phylo" object using the "make.era.map" function from the "phytools" package.
-Note that only one shift is allowed by the current version. The age of the shift could be otherwise directly provided in the function by the "age" argument in unit of times of the tree.
+The mvSHIFT function fits a shift in mode or rate of evolution at a fixed point in time, as previously proposed by some authors (O'Meara et al. 2006; O'Meara, 2012; Slater, 2013). Shift in mode of evolution could be mapped on a modified "phylo" object using the "make.era.map" function from the "phytools" package.
+Note that only one shift is allowed by the current version. The age of the shift could be otherwise directly provided (in unit of times of the tree) in the function by the "age" argument in the "param" list.
 
-The function allows to fit model of "ecological release" and "ecological release and radiate" following Slater (2013), as well as a model of constrained ecology "EC" (e.g., after invasion of a competitive species in a given ecosystem) where traits are constrained in a Ornstein-Uhlenbeck process after a fixed point in time ("RC" is the same model but assume an independent rate during the early radiative phase). The "SR" model allows fitting different (brownian) rates before and after the shift point (note that this model could also be fitted using the mvBM function).
-The models "RR" for "radiate and release" or "ER" for "ecological release", fit an Ornstein-Uhlenbeck process before the fixed point while the drift parameter is not constrained after this point ("ecological release") or is allowed to vary ("release and radiate"). (see Slater, 2013).
+The function allows fitting model with shift from an Orstein-Uhlenbeck to a Brownian motion process and vice-versa ("OUBM" and "BMOU"), shifts from a Brownian motion to/from an Early Burst (ACDC) model ("BMEB" and "EBBM"), or shifts from an Orstein-Uhlenbeck to/from an Early Burst (ACDC) model ("OUEB" and "EBOU").
+
+In all these cases it is possible to allow the drift parameter to vary after the fixed point by specifying "i" (for independent) after the model name. For instance, to fit models of "ecological release" or "ecological release and radiate" following Slater (2013), we can use  "OUBM" or "OUBMi" respectively.
+
+Alternatively it is also possible to use the shortcuts "ER" or "RR" to fit respectively models of "ecological release" and "ecological release and radiate", and "EC" for a model of "constrained ecology" (e.g., after invasion of a competitive species in a given ecosystem) where traits are constrained in an Ornstein-Uhlenbeck process after a fixed point in time ("RC" is the same model but assumes an independent rate during the early radiative phase). The "SR" model allows fitting different (Brownian) rates/drift before and after the shift point (note that this model could also be fitted using the mvBM function).
+
+The "param" list can be used to provide lower and upper bounds for the exponential rate parameter of the Early-Burst/ACDC model. See ?mvEB for details.
+
+The "method" argument allows the user to try different algorithms for computing the log-likelihood. The "rpf" and "sparse" methods use fast GLS algorithms based on factorization for avoiding the computation of the inverse of the variance-covariance matrix and its determinant involved in the log-likelihood estimation. The "inverse" approach uses the "stable" standard explicit computation of the inverse and determinant of the matrix and is therefore slower. The "pseudoinverse" method uses a generalized inverse that is safer for matrix near singularity but very time consuming. See ?mvLL for details.
 %%  ~~ If necessary, more details than the description above ~~
 }
 \value{
-\item{LogLik}{Log-Likelihood of the optimized model.}
-\item{AIC}{Akaike Information Criterion calculated for the best model.}
-\item{AICc}{Akaike Information Criterion corrected for small sample size.}
-\item{theta.mat}{Matrix of estimated theta values for each traits and selective regimes (ancestral states).}
-\item{alpha.mat}{Matrix of estimated alpha values (strength of selection) for studied traits (diagonal).}
-\item{sigma.mat}{Matrix of estimated sigma values (drift) for studied traits (diagonal).}
-\item{sig.mat}{Matrix of estimated sigma values for the BM process after the shift (diagonal, only in the "RR" model).}
-\item{alpha}{alpha values estimated by the optimizing function.}
-\item{sigma}{sigma values estimated by the optimizing function.}
-\item{alpha.se}{standard errors of the alpha estimated values.}
-\item{sigma.se}{standard errors of the sigma estimated values.}
-\item{sig.se}{standard errors of the sigma estimated values for the BM process after the shift (only in "RR" model).}
-\item{convergence}{Convergence statut of the optimizing function. See ?optim for more details.}
-\item{hessian}{Hessian matrix (see "mvOU" details).}
-\item{hess.value}{If value is 0, this mean that the eigen-values of the hessian matrix are all positives. Value of 1 means that the optimizing function may have converged to a non-reliable estimation.}
+\item{LogLik }{The log-likelihood of the optimal model.}
+\item{AIC }{Akaike Information Criterion for the optimal model.}
+\item{AICc }{Sample size-corrected AIC.}
+\item{theta }{Estimated ancestral states.}
+\item{alpha }{Matrix of estimated alpha values (strength of selection).}
+\item{beta }{Exponent rate (of decay or increase) for the ACDC/Early-Burst model.}
+\item{sigma }{Evolutionary rates matrix (drift) for the BM process before the shift.}
+\item{sig   }{Evolutionary rates matrix (drift) for the BM process after the shift (only for "i" models).}
+\item{convergence }{Convergence status of the optimizing function; "0" indicates convergence. (See ?optim for details).}
+\item{hessian }{Hessian matrix of second order partial derivatives at the MLE. (See ?mvOU for details).}
+\item{hess.values }{Reliability of the likelihood estimates calculated through the eigen-decomposition of the hessian matrix. "0" means that a reliable estimate has been reached. (See ?mvOU for details).}
+\item{param }{List of model fit parameters (optimization, method, model, number of parameters...).}
+
 %%  ~Describe the value returned
 %%  If it is a LIST, use
 %%  \item{comp1 }{Description of 'comp1'}
@@ -106,21 +104,18 @@ The models "RR" for "radiate and release" or "ER" for "ecological release", fit 
 %% ...
 }
 \references{
-O'Meara B.C. 2012. Evolutionary inferences from phylogenies: a review of methods. Annu. Rev. Ecol. Evol. Syst. 43:267-285. 
+O'Meara B.C. 2012. Evolutionary inferences from phylogenies: a review of methods. Annu. Rev. Ecol. Evol. Syst. 43:267-285.
 
-O'Meara B.C., Ane C., Sanderson M.J., Wainwright P.C. 2006. Testing for different rates of continuous trait evolution. Evolution. 60:922-933. 
+O'Meara B.C., Ane C., Sanderson M.J., Wainwright P.C. 2006. Testing for different rates of continuous trait evolution. Evolution. 60:922-933.
 
-Slater G.J. 2013. Phylogenetic evidence for a shift in the mode of mammalian body size evolution at the Cretaceous-Palaeogene boundary. Methods Ecol. Evol. 4:734-744. 
-
+Slater G.J. 2013. Phylogenetic evidence for a shift in the mode of mammalian body size evolution at the Cretaceous-Palaeogene boundary. Methods Ecol. Evol. 4:734-744.
 %% ~put references to the literature/web site here ~
 }
 \author{
-
 Julien Clavel
 %%  ~~who you are~~
 }
 \note{
-
 Changes in rate of evolution and optima can also be fitted using the mvBM and mvOU functions using a 'make.era.map' transformed tree.
 %%  ~~further notes~~
 }
@@ -132,50 +127,76 @@ Changes in rate of evolution and optima can also be fitted using the mvBM and mv
 \code{\link{mvOU}}
 \code{\link{mvBM}}
 \code{\link{mvEB}}
+\code{\link{mvSIM}}
 \code{\link{optim}}
 \code{\link{subplex}}
 \code{\link{paintSubTree}}
 \code{\link{make.era.map}}
-
 %% ~~objects to See Also as \code{\link{help}}, ~~~
 }
 \examples{
-## Toy Exemple
-  set.seed(123)
-  # Generating a random tree
-  tree<-pbtree(n=25)
+## Toy example
 
-  # Making the simmap tree with the shift at a fixed point in time
-  tot<-max(nodeHeights(tree))
-  age=tot-0.3    # The shift occured 0.3 Ma ago
-  tree<-make.era.map(tree,c(0,age))
+# Simulated dataset
+set.seed(14)
+# Generating a random tree
+tree<-rtree(50)
 
-  # Plot of the phylogeny for illustration
-  plotSimmap(tree,fsize=0.6,node.numbers=FALSE,lwd=3, pts=FALSE)
+# Providing a tree whith the shift mapped on
+tot<-max(nodeHeights(tree))
+age=tot-3    # The shift occured 3 Ma ago
+tree<-make.era.map(tree,c(0,age))
 
-  # 2 Random traits evolving along the phylogeny
-  data<-data.frame(head.size=rTraitCont(tree), mouth.size=rTraitCont(tree))
+# Plot of the phylogeny for illustration
+plotSimmap(tree,fsize=0.6,node.numbers=FALSE,lwd=3, pts=FALSE)
 
-  # Names of the species
-  rownames(data)<-tree$tip.label
+# Simulate the traits
+alpha<-matrix(c(2,0.5,0.5,1),2)
+sigma<-matrix(c(0.1,0.05,0.05,0.1),2)
+theta<-c(2,3)
+data<-mvSIM(tree, param=list(sigma=sigma, alpha=alpha, ntraits=2, mu=theta,
+            names_traits=c("head.size","mouth.size")), model="ER", nsim=1)
 
-## Run the analysis!
 
-  # Note that different rates before and after the shift could be fitted as:
-  mvBM(tree,data)
-  # or
-  mvSHIFT(tree,data,0.3,model="SR")
-  
-  
-  # Not run
-  # Analysis with ecological release
-  # mvSHIFT(tree,data,model="ER")
+## Fitting the models
+# "Ecological release model"
+mvSHIFT(tree, data, model="OUBM") # similar to mvSHIFT(tree, data, model="ER")
 
-  # Analysis with ecological release and radiate
-  # mvSHIFT(tree,data,model="RR")
-  
- 
-   
+# "Release and radiate model"
+# mvSHIFT(tree, data, model="RR", method="sparse")
+# similar to mvSHIFT(tree, data, model="OUBMi")
+
+# More generally...
+
+# OU to/from BM
+# mvSHIFT(tree, data, model="OUBM", method="sparse")
+# mvSHIFT(tree, data, model="BMOU", method="sparse")
+# mvSHIFT(tree, data, model="OUBMi", method="sparse")
+# mvSHIFT(tree, data, model="BMOUi", method="sparse")
+
+# BM to/from EB
+# mvSHIFT(tree, data, model="BMEB", method="sparse")
+# mvSHIFT(tree, data, model="EBBM", method="sparse")
+# mvSHIFT(tree, data, model="BMEBi", method="sparse")
+# mvSHIFT(tree, data, model="EBBMi", method="sparse")
+
+# OU to/from EB
+# mvSHIFT(tree, data, model="OUEB", method="sparse")
+# mvSHIFT(tree, data, model="OUEBi", method="sparse")
+# mvSHIFT(tree, data, model="EBOU", method="sparse")
+# mvSHIFT(tree, data, model="EBOUi", method="sparse")
+
+
+## Without providing mapped tree
+# The shift occured 3Ma ago (param$age=3)
+# set.seed(14)
+# tree<-rtree(50)
+# data<-mvSIM(tree, param=list(sigma=sigma, alpha=alpha, ntraits=2, mu=theta,
+#            names_traits=c("head.size","mouth.size"), age=3), model="ER", nsim=1)
+
+## Fitting the models without mapped tree but by specifying the age in the param list.
+# mvSHIFT(tree, data, model="OUBM", param=list(age=3))
+
 }
 % Add one or more standard keywords, see file 'KEYWORDS' in the
 % R documentation directory.
@@ -183,6 +204,7 @@ Changes in rate of evolution and optima can also be fitted using the mvBM and mv
 \keyword{ Shifts }
 \keyword{ Brownian Motion }
 \keyword{ Evolutionary rates }
+\keyword{ Early-Burst }
 \keyword{ RR }
 \keyword{ EC }
 \keyword{ SR }

@@ -4,8 +4,7 @@
 /* This file is part of the R-package `ape'. */
 /* See the file ../COPYING for licensing issues. */
 
-#include <R.h>
-#include <Rinternals.h>
+#include "mvmorph.h"
 
 SEXP seq_root2tipM(SEXP edge, SEXP nbtip, SEXP nbnode){
     int i, j, k, Nedge, *x, *done, dn, sumdone, lt, ROOT, Ntip, Nnode;

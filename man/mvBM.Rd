@@ -2,102 +2,102 @@
 \alias{mvBM}
 %- Also NEED an '\alias' for EACH other topic documented here.
 \title{
-Multivariate Brownian Motion models of continuous traits evolution
+Multivariate Brownian motion models of continuous traits evolution
 %%  ~~function to do ... ~~
 }
 \description{
-This function allows the fitting of multivariate multiple rates of evolution. This function also allows to fit constrained models. 
+This function allows the fitting of multivariate multiple rates of evolution under a Brownian motion model. This function can also fit constrained models.
 %%  ~~ A concise (1-5 lines) description of what the function does. ~~
 }
 \usage{
-mvBM(tree, data, error = NULL, reg = NULL, model = c("BMM", "BM1"), 
- constraint = FALSE, simmap.tree = TRUE, scale.height = FALSE, 
- method = c("L-BFGS-B","Nelder-Mead","subplex"), random.start=FALSE,
- control=list(maxit=20000),mod="ER",pseudoinverse=FALSE, diagnostic = TRUE,
- echo = TRUE)
+mvBM(tree, data, error = NULL, model = c("BMM", "BM1"), param =
+    list(constraint = FALSE, smean = TRUE), method = c("rpf", "pic",
+    "sparse", "inverse", "pseudoinverse"), scale.height = FALSE,
+    optimization = c("L-BFGS-B", "Nelder-Mead", "subplex"),
+    control = list(maxit = 20000), precalc = NULL, diagnostic = TRUE,
+    echo = TRUE)
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
   \item{tree}{
-  Phylogenetic tree in SIMMAP format by default.
+Phylogenetic tree in SIMMAP format by default. A "phylo" object can also be used with the "BM1" model.
 %%     ~~Describe \code{tree} here~~
 }
   \item{data}{
-  Matrix or data frame with species in rows and continuous traits in columns (preferentially with names and in the same order than in the tree).
+Matrix or data frame with species in rows and continuous traits in columns (preferentially with names and in the same order than in the tree).
 %%     ~~Describe \code{data} here~~
 }
   \item{error}{
-   Matrix or data frame with species in rows and continuous traits standard error (squared) in columns.
+Matrix or data frame with species in rows and continuous traits standard error (squared) in columns.
 %%     ~~Describe \code{error} here~~
 }
-  \item{reg}{
-  Vector of current species regimes. Use this argument only if you use non-SIMMAP tree.
-%%     ~~Describe \code{reg} here~~
-}
   \item{model}{
-  "BMM" for a multi-rate and multi-selective regimes, and "BM1" for a unique rate of evolution per trait.
+"BMM" for a multi-rate and multi-selective regimes, and "BM1" for a unique rate of evolution per trait.
 %%     ~~Describe \code{model} here~~
 }
-  \item{constraint}{
-  If TRUE, the constrained model will be also calculated (see details).
-%%     ~~Describe \code{constraint} here~~
-}
-  \item{simmap.tree}{
-  Set to FALSE if you specify the reg argument. In this case, ancestral states are estimated from the posterior probabilities of loglikelihood estimates using the rerooting Method of the "phytools" package.
-%%     ~~Describe \code{simmap.tree} here~~
-}
-  \item{scale.height}{
-  Scale the tree to relative length.
-%%     ~~Describe \code{scaleHeight} here~~
+  \item{param}{
+List of arguments to be passed to the function. See details.
+%%     ~~Describe \code{param} here~~
 }
   \item{method}{
-  Methods used by the optimization function. (see ?optim and ?subplex for details).
+Choose between "rpf", "sparse", "inverse", "pseudoinverse", or "pic" for log-likelihood computation during the fitting process. See details.
 %%     ~~Describe \code{method} here~~
 }
-\item{random.start}{
-  Whether the starting values of the optimizer must be estimated or random. (assessing convergence with random starting values may be helpful).
-%%     ~~Describe \code{method} here~~
+  \item{scale.height}{
+Whether the tree should be scaled to length 1 or not.
+%%     ~~Describe \code{scale.height} here~~
+}
+  \item{optimization}{
+Methods used by the optimization routines (see ?optim and ?subplex for details).
+%%     ~~Describe \code{optimization} here~~
 }
   \item{control}{
-  Max. bound for the number of iteration of the optimizer; other options can be fixed on the list (see ?optim or ?subplex).
+Max. bound for the number of iteration of the optimizer; other options can be fixed on the list (see ?optim or ?subplex).
 %%     ~~Describe \code{control} here~~
 }
-  \item{mod}{
-  Rates of transition for ancestral states reconstruction if simmap.tree is set to FALSE (see ?ace for details). 
-%%     ~~Describe \code{mod} here~~
-}
- \item{pseudoinverse}{
-  Whether Moore-Penrose pseudoinverse should be used in calculation (slower).
-%%     ~~Describe \code{pseudoinverse} here~~
+  \item{precalc}{
+Optional. precalculation of fixed parameters. See ?mvmorph.Precalc.
+%%     ~~Describe \code{precalc} here~~
 }
   \item{diagnostic}{
-  Whether the diagnostic on convergence and reliability of the estimates must be returned.
+Whether the diagnostics of convergence should be returned or not.
 %%     ~~Describe \code{diagnostic} here~~
 }
   \item{echo}{
-  Whether the summary statistics must be returned (or just stored)
+Whether the results must be returned or not.
 %%     ~~Describe \code{echo} here~~
 }
 }
 \details{
-The mvBM function fit a multivariate Brownian Motion (BM) process, with unique or multiple BM rates (see O'Meara et al., 2006; and Revell and Collar, 2009). Note that the function use the non-censored approach of O'Meara et al. (2006).
-Constrained models force the sigma values for each studied trait to be the same using the constrained Cholesky decomposition proposed by Adams (2013), which allows considering the covariation between traits.
- This approach is extended here to the multi-rate case, by specifying that the rates must be the same in different parts of the tree (common selective regime).
- If the tree is in "phylo" format, the user may specify the selective regime for each tip species (in the same order as in the phylogeny) with the argument "reg". If no selective regimes are specified the function works only with the model "BM1".
- 
- N.B. Mapping of ancestral states can be done using the "make.simmap", "make.era.map" or "paintSubTree" functions from the "phytools" package.
+The mvBM function fits a multivariate Brownian Motion (BM) process, with unique or multiple BM rates (see O'Meara et al., 2006; Revell and Collar, 2009). Note that the function uses the non-censored approach of O'Meara et al. (2006) by default (i.e., a common ancestral state is assumed for the different regimes), but it is possible to specify multiple ancestral states (i.e., one for each regimes) through the "smean" parameter (smean=FALSE) in the "param" list.
+
+The "method" argument allows the user to try different algorithms for computing the log-likelihood. The "rpf" and "sparse" methods use fast GLS algorithms based on factorization for avoiding the computation of the inverse of the variance-covariance matrix and its determinant involved in the log-likelihood estimation. The "inverse" approach uses the "stable" standard explicit computation of the inverse and determinant of the matrix and is therefore slower. The "pseudoinverse" method uses a generalized inverse that is safer for matrix near singularity but very time consuming. The "pic" method uses a very fast algorithm based on independent contrasts. It should be used with strictly dichotomic trees (i.e., no polytomies) and is currently not available for the multivariate "BMM" model. See ?mvLL for more details on these computational methods.
+
+The "param" list arguments:
+
+"constraint" - The "constraint" argument in the "param" list allows the user to compute the joint likelihood for each trait by assuming they evolved independently (constraint="diagonal"). If "constraint=TRUE", the model forces the sigma values for each studied trait to be the same using the constrained Cholesky decomposition proposed by Adams (2013), which allows considering the covariations between traits.
+This approach is extended here to the multi-rate case, by specifying that the rates must be the same in different parts of the tree (common selective regime).
+Significance of model fit can be assessed using the "LRT" function. See example below and ?LRT.
+
+"smean" - Default set to TRUE. If FALSE, the ancestral state for each selective regime is estimated (e.g., Thomas et al., 2006).
+
+"sigma" - Starting values for the likelihood estimation. By default the theoretical expected values are used as starting values for the likelihood optimization (for measurement errors, multiple rates,...). The user can specify starting values with a list() object for the "BMM" model (e.g., two objects in the list for a two-regime analysis), or a simple vector of values for the "BM1" model. The parameterization is done using a Cholesky factorization (Pinheiro & Bates, 1996). Thus, you should provide p*(p+1) values, with p the number of traits (e.g., random numbers or the values from the cholesky factor of a symmetric positive definite sigma matrix - see example below).
+
+If no selective regimes are specified the function works only with the model "BM1".
+
+N.B.: Mapping of ancestral states can be done using the "make.simmap", "make.era.map" or "paintSubTree" functions from the "phytools" package.
 %%  ~~ If necessary, more details than the description above ~~
 }
-\value{ 
-\item{LogLik.m }{The log-likelihood of the optimal model (note that LogLik.cons return the Log-likelihood for the constrained model if the "constraint" argument is turned on).}
-\item{AIC.mult }{Akaike Information Criterion for the optimal model (AIC.cons for the constrained model)}
-\item{AICc.mult }{Sample size-corrected AIC (AICc.cons for the constrained model)}
-\item{rates.m }{Evolutionary rates matrix for each selective regimes (rates.cons for the constrained model)}
-\item{anc }{Estimated ancestral states (anc.cons for the constrained model)}
-\item{convergence }{Convergence status of the optimizing function; "0" mean convergence (convergence.cons for the constrained model) (See ?optim for details).}
-\item{hess.values }{Reliability of the likelihood estimates calculated through the eigen-decomposition of the hessian matrix. "0" mean that a reliable estimate has been reached (hess.values.cons for the constrained model). See ?mvOU for details.}
-\item{LRT }{If the constraint argument is "TRUE", the LRT (Log-ratio test) score between the observed and constrained model is returned}
-\item{pval }{If the constraint argument is "TRUE", the p-value of the LRT test (comparison with Chi-square distribution) is returned}
+\value{
+\item{LogLik }{The log-likelihood of the optimal model.}
+\item{AIC }{Akaike Information Criterion for the optimal model.}
+\item{AICc }{Sample size-corrected AIC.}
+\item{theta }{Estimated ancestral states.}
+\item{sigma }{Evolutionary rates matrix for each selective regime.}
+\item{convergence }{Convergence status of the optimizing function; "0" indicates convergence (See ?optim for details).}
+\item{hessian }{Hessian matrix of second order partial derivatives at the MLE (See ?mvOU for details).}
+\item{hess.values }{Reliability of the likelihood estimates calculated through the eigen-decomposition of the hessian matrix. "0" means that a reliable estimate has been reached. (See ?mvOU).}
+\item{param }{List of model fit parameters (optimization, method, model, number of parameters...).}
 %%  ~Describe the value returned
 %%  If it is a LIST, use
 %%  \item{comp1 }{Description of 'comp1'}
@@ -105,22 +105,25 @@ Constrained models force the sigma values for each studied trait to be the same 
 %% ...
 }
 \references{
-Adams D.C. 2013. Comparing evolutionary rates for different phenotypic traits on a phylogeny using likelihood. Syst. Biol. 62:181-192. 
+Adams D.C. 2013. Comparing evolutionary rates for different phenotypic traits on a phylogeny using likelihood. Syst. Biol. 62:181-192.
 
-O'Meara B.C., Ane C., Sanderson M.J., Wainwright P.C. 2006. Testing for different rates of continuous trait evolution. Evolution. 60:922-933. 
+O'Meara B.C., Ane C., Sanderson M.J., Wainwright P.C. 2006. Testing for different rates of continuous trait evolution. Evolution. 60:922-933.
 
-Revell L.J. 2012. phytools: An R package for phylogenetic comparative biology (and other things). Methods Ecol. Evol. 3:217-223. 
+Revell L.J. 2012. phytools: An R package for phylogenetic comparative biology (and other things). Methods Ecol. Evol. 3:217-223.
 
-Revell L.J., Collar D.C. 2009. Phylogenetic analysis of the evolutionary correlation using likelihood. Evolution. 63:1090-1100. 
+Revell L.J., Collar D.C. 2009. Phylogenetic analysis of the evolutionary correlation using likelihood. Evolution. 63:1090-1100.
 
-
-
+Thomas G.H., Freckleton R.P., Szekely T. 2006. Comparative analyses of the influence of developmental mode on phenotypic diversification rates in shorebirds. Proc. R. Soc. B. 273:1619-1624.
 
 %% ~put references to the literature/web site here ~
 }
 \author{
 Julien Clavel
 %%  ~~who you are~~
+}
+\note{
+The "pic" method is not currently implemented for the multivariate "BMM" model.
+%%  ~~further notes~~
 }
 
 %% ~Make other sections like Warning with \section{Warning }{....} ~
@@ -130,6 +133,8 @@ Julien Clavel
 \code{\link{mvOU}}
 \code{\link{mvEB}}
 \code{\link{mvSHIFT}}
+\code{\link{mvSIM}}
+\code{\link{LRT}}
 \code{\link{optim}}
 \code{\link{brownie.lite}}
 \code{\link{evol.vcv}}
@@ -139,41 +144,75 @@ Julien Clavel
 %% ~~objects to See Also as \code{\link{help}}, ~~~
 }
 \examples{
-## Toy Exemple
-  set.seed(123)
-  # Generating a random tree
-  tree<-pbtree(n=25)
+## Toy example
 
-  # Setting the regime states of tip species
-  sta<-as.vector(c(rep("Forest",10),rep("Savannah",15))); names(sta)<-tree$tip.label
+# Simulated dataset
+set.seed(14)
+# Generating a random tree
+tree<-pbtree(n=50)
 
-  # Making the simmap tree with mapped states
-  tree<-make.simmap(tree,sta , model="ER", nsim=1)
-  col<-c("blue","orange"); names(col)<-c("Forest","Savannah")
+# Setting the regime states of tip species
+sta<-as.vector(c(rep("Forest",20),rep("Savannah",30))); names(sta)<-tree$tip.label
 
-  # Plot of the phylogeny for illustration
-  plotSimmap(tree,col,fsize=0.6,node.numbers=FALSE,lwd=3, pts=FALSE)
+# Making the simmap tree with mapped states
+tree<-make.simmap(tree,sta , model="ER", nsim=1)
+col<-c("blue","orange"); names(col)<-c("Forest","Savannah")
 
-  # 2 Random traits evolving along the phylogeny
-  data<-data.frame(head.size=rTraitCont(tree), mouth.size=rTraitCont(tree))
+# Plot of the phylogeny for illustration
+plotSimmap(tree,col,fsize=0.6,node.numbers=FALSE,lwd=3, pts=FALSE)
 
-  # Names of the species
-  rownames(data)<-tree$tip.label
+# Simulate the traits
+sigma<-matrix(c(0.1,0.05,0.05,0.1),2)
+theta<-c(0,0)
+data<-mvSIM(tree, param=list(sigma=sigma, ntraits=2, mu=theta,
+            names_traits=c("head.size","mouth.size")), model="BM1", nsim=1)
 
-## Run the analysis!!
-  # BM model with multiple regimes
-  mvBM(tree,data)
+## Fitting the models
+# BMM - Analysis with multiple rates
+mvBM(tree, data)
 
-  # BM model with a single rate per trait
-  mvBM(tree,data, model="BM1")
+# BM1 - Analysis with a unique rate matrix
+fit1<-mvBM(tree, data, model="BM1", method="pic")
 
-  # Comparing evolutionary rates between traits with a constrained BM model (see details)
-  # see Adams (2013)
-  mvBM(tree,data, model="BM1", constraint=TRUE)
-  
-  mvBM(tree,data, model="BMM", constraint=TRUE)
-}
-% Add one or more standard keywords, see file 'KEYWORDS' in the
+# BM1 constrained
+fit2<-mvBM(tree, data, model="BM1", method="pic", param=list(constraint=TRUE))
+
+# Comparison with LRT test
+LRT(fit1,fit2)
+
+# Random starting values
+mvBM(tree, data, model="BMM", method="sparse", param=list( sigma=list(runif(3), runif(3)) ))
+
+# Specified starting values (from the Cholesky factor)
+chol_factor<-chol(sigma)
+starting_values<-chol_factor[upper.tri(chol_factor,TRUE)]
+mvBM(tree, data, model="BMM", method="sparse",
+    param=list( sigma=list(starting_values, starting_values)))
+
+# Multiple mean
+mvBM(tree, data, model="BMM", method="sparse", param=list(smean=FALSE))
+
+
+## FAST FOR THE UNIVARIATE CASE!!
+# set.seed(14)
+# tree2<-pbtree(n=5416) # Number of Mammal species
+# Setting the regime states of tip species
+# sta<-as.vector(c(rep("group_1",2000),rep("group_2",3416))); names(sta)<-tree2$tip.label
+#
+# Making the simmap tree with mapped states
+# tree2<-make.simmap(tree2,sta , model="ER", nsim=1)
+# col<-c("blue","orange"); names(col)<-c("Group_1","Group_2")
+# plotSimmap(tree2,col,fsize=0.6,node.numbers=FALSE,lwd=3, pts=FALSE)
+#
+# Simulate a trait evolving by brownian motion on the tree
+# trait<-rTraitCont(tree2)
+#
+# Fitting the models
+# mvBM(tree2, trait, model="BMM", method="pic")
+# mvBM(tree2, trait, model="BM1", method="pic")
+
+
+}% Add one or more standard keywords, see file 'KEYWORDS' in the
 % R documentation directory.
 \keyword{ Brownian Motion }
 \keyword{ Evolutionary rates }

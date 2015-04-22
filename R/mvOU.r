@@ -25,7 +25,7 @@ if(!is.matrix(data)){data<-as.matrix(data)}
 # Check the tree
     if(is.null(tree[["mapped.edge"]])==TRUE){
         model<-"OU1"
-        cat("No selective regimes mapped on the tree, only a OU1 model could be estimated","\n")
+      if(echo==TRUE)  cat("No selective regimes mapped on the tree, only a OU1 model could be estimated","\n")
     }
 
 ##-------------------------Calculation of parameters--------------------------##
@@ -51,10 +51,10 @@ if(is.null(param[["decomp"]])){
       }else{
       if(is.ultrametric(tree)==TRUE & decomp=="symmetricPositive"){
         vcvtype<-"ouch"
-         cat("The tree is ultrametric, the \"ouch\" VCV is used as default setting with symmetric positive definite alpha matrix. See ?mvOU","\n")
+      if(echo==TRUE)   cat("The tree is ultrametric, the \"ouch\" VCV is used as default setting with symmetric positive definite alpha matrix. See ?mvOU","\n")
       }else{
         vcvtype<-"mvmorph"
-        cat("The tree is not ultrametric or the alpha matrix is not constrained to be symmetric positive definite, the \"mvmorph\" VCV is thus used. See ?mvOU","\n")
+       if(echo==TRUE) cat("The tree is not ultrametric or the alpha matrix is not constrained to be symmetric positive definite, the \"mvmorph\" VCV is thus used. See ?mvOU","\n")
       }
     }
       
@@ -64,12 +64,12 @@ if(is.null(param[["decomp"]])){
   
   if(vcvtype!="sparse" & method=="sparse"){
       vcvtype<-"sparse"
-      cat("Only \"sparse\" VCV could be used with the \"sparse\" method. See ?mvOU","\n")
+   if(echo==TRUE)   cat("Only \"sparse\" VCV could be used with the \"sparse\" method. See ?mvOU","\n")
       #method<-"sparse"
   }
   if(vcvtype=="ouch" & decomp!="symmetricPositive"){
       decomp<-param$decomp<-"symmetricPositive"
-      cat("Only \"symmetricPositive\" alpha matrices could be used with the \"ouch\" vcv method. See ?mvOU","\n")
+     if(echo==TRUE) cat("Only \"symmetricPositive\" alpha matrices could be used with the \"ouch\" vcv method. See ?mvOU","\n")
       # otherwise the program crash
   }
   
@@ -132,7 +132,7 @@ decomp<-param$decomp<-"symmetricPositive"
   if(method=="univarpf"){
       if(p!=1){ method<-"rpf" }
       if(vcvtype=="ouch"){ vcvtype<-"univarpf"
-            cat("Only \"mvmorph\" VCV could be used with the \"univarpf\" method. See ?mvOU","\n")
+        if(echo==TRUE)    cat("Only \"mvmorph\" VCV could be used with the \"univarpf\" method. See ?mvOU","\n")
       }
   }
 
@@ -504,3 +504,7 @@ class(results)<-c("mvmorph","ou")
 invisible(results)
 
 }
+
+
+halflife <- function(object) UseMethod("halflife")
+stationary <- function(object) UseMethod("stationary")

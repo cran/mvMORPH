@@ -29,6 +29,11 @@ sym.unpar <- function (x) {
   y[lower.tri(y,diag=TRUE)]
 }
 
+sym.unpar_off <- function (x) {
+    y <- t(chol(x))
+    y[lower.tri(y,diag=FALSE)]
+}
+
 
 
 # alpha matrix parameterization
@@ -198,7 +203,7 @@ varBM<-function(tree,data,n,k){
     rate<-rep(0,k)
     tree<-reorder(tree,"postorder")
     value<-list(tree$edge.length)
-    res<-.Call("PIC_gen", x=as.vector(as.matrix(data)), n=as.integer(k), Nnode=as.integer(tree$Nnode), nsp=as.integer(n), edge1=as.integer(tree$edge[,1]), edge2=as.integer(tree$edge[,2]), edgelength=value, times=1, rate=rate, Tmax=1, Model=as.integer(7), mu=1, sigma=1)
+    res<-.Call("PIC_gen", x=as.vector(as.matrix(data)), n=as.integer(k), Nnode=as.integer(tree$Nnode), nsp=as.integer(n), edge1=as.integer(tree$edge[,1]), edge2=as.integer(tree$edge[,2]), edgelength=value, times=1, rate=rate, Tmax=1, Model=as.integer(10), mu=1, sigma=1)
     return(res[[2]])
 }
 
@@ -233,6 +238,24 @@ ratevalue<-function(up,low,x){
     y<-x<low | x>up
     x[y]=0
     return(x)
+}
+
+# Compute the stationary multivariate normal distribution for the multivariate Ornstein-Uhlenbeck (Bartoszek et al. 2012 - B.8)
+StationaryVariance <- function(alpha,sigma){
+    sigma <- sigma
+    eig <- eigen(alpha)
+    P <- eig$vectors
+    invP <- solve(P)
+    eigvalues <- eig$values
+    p=dim(sigma)[1]
+    Mat <- matrix(0,p,p)
+    for(i in 1:p){
+        for(j in 1:p){
+            Mat[i,j] <- 1/(eigvalues[i]+eigvalues[j])
+        }
+    }
+    StVar <- P%*%(Mat*(invP%*%sigma%*%t(invP)))%*%t(P)
+    return(StVar)
 }
 
 ##-----------------Function used in mvBM--------------------------------------##
@@ -344,6 +367,12 @@ print.bm<-function(x,...){
     cat("\n")
     if(x$param$constraint==TRUE){
         cat("-- Summary results for multiple constrained rates",x$param$model,"model --","\n")
+    }else if(x$param$constraint=="correlation"){
+        cat("-- Summary results for common correlation ",x$param$model,"model --","\n")
+    }else if(x$param$constraint=="shared"){
+        cat("-- Summary results for shared eigenvectors ",x$param$model,"model --","\n")
+    }else if(x$param$constraint=="proportional"){
+        cat("-- Summary results for proportional rates matrices ",x$param$model,"model --","\n")
     }else{
         cat("-- Summary results for multiple rates",x$param$model,"model --","\n")
     }
@@ -479,14 +508,51 @@ summary.mvmorph<-function(object,...){
     if(object$hess.value==0){cat("Reliable solution","\n")}else{cat("Unreliable solution (Likelihood at a saddle point)","\n")}
 }
 
+## Return the model AIC
 AIC.mvmorph<-function(object,...,k){
     return(object$AIC)
 }
 
+## Return the model AICc
+AICc <- function(x) UseMethod("AICc")
+AICc.mvmorph<-function(object){
+    return(object$AICc)
+}
+
+## Return the model fit log-likelihood
 logLik.mvmorph<-function(object,...){
     return(object$LogLik)
 }
-## Change to include the tree in the analysis? == problematic for large trees... need to much storage!
+
+## Change to include the tree in the analysis? == problematic for large trees... need too much storage!
 simulate.mvmorph<-function(object,nsim=1,seed=NULL,...){
     mvSIM(...,param=object,nsim=nsim)
+}
+
+## Return the stationary variance for the multivariate Ornstein-Uhlenbeck
+
+stationary.mvmorph<-function(object){
+    if(any(class(object)=="shift") | any(class(object)=="ou") ){
+            if(is.null(object[["alpha"]])==TRUE){
+                stop("The stationary distribution can be computed only for models including Ornstein-Uhlenbeck processes.")
+            }
+    statMat<-StationaryVariance(object$alpha,object$sigma)
+    rownames(statMat)<-rownames(object$sigma)
+    colnames(statMat)<-colnames(object$sigma)
+    return(statMat)   
+    }else{
+      warning("The stationary distribution can be computed only for Ornstein-Uhlenbeck processes.","\n")
+    }
+}
+
+## Compute the phylogenetic half-life
+
+halflife.mvmorph<-function(object){
+    if(class(object)[2]=="ou"){
+    lambda<-eigen(object$alpha)$values
+    phyhalflife<-log(2)/lambda
+        return(phyhalflife)
+    }else{
+        warning("The phylogenetic half-life is computed only for Ornstein-Uhlenbeck models.","\n")  
+    }
 }

@@ -102,7 +102,7 @@ mvSIM<-function(tree,nsim=1,error=NULL,model=c("BM1","BMM","OU1","OUM","EB"), pa
         }else{
             p<-param$ntraits
         }
-        
+         if(root==TRUE){k<-k+1}
         # mu set default values
         if(is.null(param[["mu"]])==TRUE){
             if(model=="OUM"){
@@ -174,8 +174,13 @@ mvSIM<-function(tree,nsim=1,error=NULL,model=c("BM1","BMM","OU1","OUM","EB"), pa
                 if(p!=1){
                     sigma<-lapply(1:k,function(x){ diag(p)})
                 }
-            }else{
+            }else if(model!="OUBMi" & model!="BMOUi" & model!="OUEBi" & model!="EBOUi" & model!="BMEBi" & model!="EBBMi" & model!="RR" & model!="RC"){
                 sigma<-sig<-param$sigma
+            }else{
+                
+                sigma<-param$sigma[[1]]
+                sig<-param$sigma[[2]]
+                
             }
         }
         

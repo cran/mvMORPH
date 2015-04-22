@@ -141,6 +141,8 @@ This function partly uses a modified version of the C code from the "OUCH" packa
 
 \seealso{
 \code{\link{mvMORPH}}
+\code{\link{halflife}}
+\code{\link{stationary}}
 \code{\link{mvBM}}
 \code{\link{mvEB}}
 \code{\link{mvSHIFT}}

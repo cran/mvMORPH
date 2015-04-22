@@ -45,7 +45,7 @@ if(is.null(precalc)==FALSE & class(precalc)=="mvmorph.precalc"){
     stop("The tree is not in SIMMAP format with mapped time slices")
     }
     if(!is.null(param[["age"]])){
-    cat("The tree specified in precalc is assumed to represent a shift at :",param$age)
+  if(echo==TRUE)  cat("The tree specified in precalc is assumed to represent a shift at :",param$age)
     }
     # multiple vcv list
     vcvList<-precalc$C2
@@ -541,7 +541,7 @@ results<-list(LogLik=LL, AIC=AIC, AICc=AICc, theta=theta.mat, alpha=alpha.mat, s
 }else if(model=="CV"){
 results<-list(LogLik=LL, AIC=AIC, AICc=AICc, theta=theta.mat, beta=alpha.mat, sigma=sigma.mat, convergence=estim$convergence, hessian=estim$hessian, hess.values=hess.val, param=param)
 }else if(model=="CVG"){
-results<-list(LogLik=LL, AIC=AIC, AICc=AICc, theta=theta.mat, alpha=alpha.mat, sigma=sigma.mat, sig=sig.mat, convergence=estim$convergence, hessian=estim$hessian, hess.values=hess.val, param=param)
+results<-list(LogLik=LL, AIC=AIC, AICc=AICc, theta=theta.mat, beta=alpha.mat, sigma=sigma.mat, sig=sig.mat, convergence=estim$convergence, hessian=estim$hessian, hess.values=hess.val, param=param)
 }else if(model=="OV"){
 results<-list(LogLik=LL, AIC=AIC, AICc=AICc, theta=theta.mat, alpha=alpha.mat, sigma=sigma.mat, beta=beta.mat, convergence=estim$convergence, hessian=estim$hessian, hess.values=hess.val, param=param)
 }else if(model=="OVG"){

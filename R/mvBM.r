@@ -25,7 +25,17 @@ k<-dim(data)[2]
 # method for the optimizer & algorithm
 optimization<-optimization[1]
 
-if(is.null(param[["constraint"]])==TRUE){constraint<-param$constraint<-FALSE}else{constraint<-param$constraint}
+if(is.null(param[["constraint"]])==TRUE){constraint<-param$constraint<-FALSE}else{
+    if((param$constraint=="shared" & model=="BM1") | (param$constraint=="proportional" & model=="BM1") | (param$constraint=="correlation" & model=="BM1")){
+    constraint<-FALSE
+    if(echo==TRUE) cat(" \"shared\" and \"proportional\" can be used only with BMM model","\n")
+
+    }else if(param$constraint=="shared" & k==1){
+        constraint<-FALSE
+    }else{
+    constraint<-param$constraint
+    }
+}
 
 
 ##------------------------Precalc---------------------------------------------##
@@ -34,7 +44,7 @@ if(is.null(precalc)==FALSE & class(precalc)=="mvmorph.precalc"){
     
     if(is.null(tree[["mapped.edge"]])==TRUE){
         model<-"BM1"
-        cat("No selective regimes mapped on the tree, only a BM1 model could be estimated","\n")
+       if(echo==TRUE) cat("No selective regimes mapped on the tree, only a BM1 model could be estimated","\n")
     }
     C1<-precalc$C1
     D<-precalc$D
@@ -61,7 +71,7 @@ if(is.null(precalc)==FALSE & class(precalc)=="mvmorph.precalc"){
 ##------------------------Create VCV matrix-----------------------------------##
 if(is.null(tree[["mapped.edge"]])==TRUE){
     model<-"BM1"
-    cat("No selective regimes mapped on the tree, only a BM1 model could be estimated","\n")
+    if(echo==TRUE) cat("No selective regimes mapped on the tree, only a BM1 model could be estimated","\n")
 }
 # Scale the tree
 if(scale.height==TRUE){
@@ -70,10 +80,29 @@ if(scale.height==TRUE){
     if(model=="BMM")tree$mapped.edge<-tree$mapped.edge/maxHeight
 }
 
+if(method=="pic"){
+    ind<-reorder(tree,"postorder", index.only=TRUE)
+    tree$edge<-tree$edge[ind,]
+    tree$edge.length<-tree$edge.length[ind]
+    value<-list(tree$edge.length)
+    
+    if(model=="BMM"){
+        tree$mapped.edge<-tree$mapped.edge[ind,]
+    }
+    # method for computing the log-likelihood
+    if(model=="BMM" & k!=1){
+        #mvMORPH-1.0.3
+        warning("Sorry, the \"pic\" method only works with univariate data for the BMM model ","\n","the \"rpf\" method has been used instead...","\n")
+        method<-"rpf"
+    }
+    C1<-NULL
+    C2<-NULL
+}
+
 if(method!="pic"){
 # Compute vcv for SIMMAP tree (replace in precalc?)
     C1<-vcv.phylo(tree)
-	if(!is.null(rownames(data))) { 
+	if(!is.null(rownames(data))) {
 	 if(any(tree$tip.label==rownames(data))){
          C1<-C1[rownames(data),rownames(data)]
   }else if(echo==TRUE){
@@ -81,7 +110,7 @@ if(method!="pic"){
     }}else if(echo==TRUE){
 	cat("species in the matrix are assumed to be in the same order as in the phylogeny, otherwise specify rownames of 'data'","\n")
 	}
-		if(model=="BMM"){
+if(model=="BMM"){
   multi.tre<-list()
   class(multi.tre)<-"multiPhylo"
   #Array method
@@ -95,29 +124,12 @@ if(method!="pic"){
 		if(any(tree$tip.label==rownames(data))) { 
 		C2[[i]]<-temp[rownames(data),rownames(data)]
 		}else{
-		C2[[i]]<-temp
-		}
-	}
- }
-        
-}else if(method=="pic"){
-            ind<-reorder(tree,"postorder", index.only=TRUE)
-            tree$edge<-tree$edge[ind,]
-            tree$edge.length<-tree$edge.length[ind]
-            value<-list(tree$edge.length)
-            
-            if(model=="BMM"){
-                tree$mapped.edge<-tree$mapped.edge[ind,]
-            }
-            # method for computing the log-likelihood
-            if(model=="BMM" & k!=1){
-                #mvMORPH-1.0.3
-                warning("Sorry, the \"pic\" method only work with univariate data for the BMM model ","\n","the \"rpf\" method has been used instead...","\n")
-                method<-"rpf"
-            }
-            C1<-NULL
-            C2<-NULL
+            C2[[i]]<-temp
         }
+      }
+    }
+        
+}
 
 ##------------------------Parameters------------------------------------------##
 
@@ -188,7 +200,7 @@ switch(method,
     sig<-unlist(sig)
     tree$edge.length<-tree$mapped.edge%*%sig
     # Compute the LLik
-    res<-.Call("PIC_gen", x=dat, n=as.integer(k), Nnode=as.integer(tree$Nnode), nsp=as.integer(n), edge1=as.integer(tree$edge[,1]), edge2=as.integer(tree$edge[,2]), edgelength=list(tree$edge.length), times=1, rate=rep(0,k), Tmax=1, Model=as.integer(6), mu=1, sigma=1)
+    res<-.Call("PIC_gen", x=dat, n=as.integer(k), Nnode=as.integer(tree$Nnode), nsp=as.integer(n), edge1=as.integer(tree$edge[,1]), edge2=as.integer(tree$edge[,2]), edgelength=list(tree$edge.length), times=1, rate=rep(0,k), Tmax=1, Model=as.integer(7), mu=1, sigma=1)
     logl<- -0.5 * ( n * k * log( 2 * pi) +  res[[5]] + n * res[[6]]  + res[[4]] )
     return(list(logl=logl,ancstate=res[[7]], sigma=res[[2]]))
         }
@@ -227,7 +239,7 @@ bm_fun_matrix<-function(C,sig,dat,D,precalcMat,n,k,error,method){
 },
 "pic"={
 bm_fun_matrix<-function(C,sig,dat,D,precalcMat,n,k,error,method){
-    res<-.Call("PIC_gen", x=dat, n=as.integer(k), Nnode=as.integer(tree$Nnode), nsp=as.integer(n), edge1=as.integer(tree$edge[,1]), edge2=as.integer(tree$edge[,2]), edgelength=list(tree$edge.length), times=1, rate=rep(0,k), Tmax=1, Model=as.integer(6), mu=NULL, sigma=sig)
+    res<-.Call("PIC_gen", x=dat, n=as.integer(k), Nnode=as.integer(tree$Nnode), nsp=as.integer(n), edge1=as.integer(tree$edge[,1]), edge2=as.integer(tree$edge[,2]), edgelength=list(tree$edge.length), times=1, rate=rep(0,k), Tmax=1, Model=as.integer(7), mu=NULL, sigma=sig)
     logl<- -0.5 * ( n * k * log( 2 * pi) +  res[[5]] + n * res[[6]]  + res[[4]] )
     return(list(logl=logl,ancstate=res[[7]], sigma=res[[2]]))
     }
@@ -259,6 +271,31 @@ buildSigma<-function(par,index.mat=NULL,sig=NULL,model,constraint){
             sigma<-diag(diag(par%*%t(par)))
         })
         
+    }else if(constraint=="shared"){
+        # Comparisons between groups (ie not allowed for BM1)
+        
+        diagval<-1:k
+        variance <- par[diagval]
+        param<-par[-diagval]
+        sig[] <- c(param)[index.mat]
+        sigma<-lapply(1:p,function(x){.Call("spherical", param=sig[x,], variance=variance, dim=as.integer(k))})
+        
+    }else if(constraint=="correlation"){
+        # Comparisons between groups (ie not allowed for BM1)
+        
+        diagval<-1:npar
+        angle <- par[diagval]
+        param<-par[-diagval]
+        sig[] <- c(param)[index.mat]
+        sigma<-lapply(1:p,function(x){.Call("spherical", param=angle, variance=sig[x,], dim=as.integer(k))})
+        
+    }else if(constraint=="proportional"){
+        # Comparisons between groups (ie not allowed for BM1)
+        propindex<-1:(p-1)
+        constant<-par[propindex]
+        rates_mat<-sym.par(par[-propindex])
+        sigma<-lapply(1:p,function(x){ if(x==1){rates_mat}else{rates_mat*as.vector((constant[x-1]%*%t(constant[x-1])))} })
+      
     }else{
         switch(model,
         "BMM"={
@@ -275,7 +312,6 @@ buildSigma<-function(par,index.mat=NULL,sig=NULL,model,constraint){
 
 
 ##------------------LogLikelihood function for multiple rates per traits------##
-
 lik.Mult<-function(par,dat,C,D,index.mat,sig,error, p, k, n, precalcMat, method,constraint){
 
   loglik<-bm_fun_matrix(C,buildSigma(par,index.mat,sig,model,constraint),dat,D,precalcMat,n,k,error,method)
@@ -340,6 +376,88 @@ if(model=="BMM"){
                 }
                 if(length(starting)!=(p*npar)){stop("The number of starting values for the rates matrix do not match, see ?mvBM for providing user specified starting values")}
             }
+##---------------------Optimization BMM shared eigenvectors-------------------##
+        }else if(param$constraint=="shared"){
+            
+            # number of parameters
+            npar=(k*(k-1)/2)
+            # sigma matrix
+            sig<-matrix(1,p,npar)
+            
+            # index matrix of rates
+            index.mat<-matrix(1:length(sig),p,npar,byrow=TRUE)
+
+            # initial values for the optimizer
+            if(is.null(param[["sigma"]])==TRUE){
+                sig1<-varBM(tree,data,n,k)
+                varval<-diag(sig1)
+                sig1<-sym.unpar_off(sig1)
+                starting<-unlist(lapply(1:p,function(x){sig1}))
+                starting<-c(varval,starting)
+            
+            }else{
+                if(length(param$sigma[[1]])==npar+k){
+                    varval<-diag(sym.par(param$sigma[[1]]))
+                    starting<-lapply(1:length(param$sigma),function(x){sym.unpar_off(sym.par(param$sigma[[x]]))})
+                }else{
+                   starting<-unlist(lapply(1:length(param$sigma),function(x){sym.unpar_off(param$sigma[[x]])}))
+                   varval<-diag(param$sigma[[1]])
+                }
+               starting<-c(varval,starting)
+                if(length(starting)!=p*npar+k){stop("The number of starting values for the rates matrix do not match, see ?mvBM for providing user specified starting values")}
+            }
+            ##---------------------Optimization BMM shared eigenvectors-------------------##
+        }else if(param$constraint=="correlation"){
+            
+            # number of parameters
+                npar=(k*(k-1)/2)
+            # sigma matrix
+                sig<-matrix(1,p,k)
+            
+            # index matrix of rates
+                index.mat<-matrix(1:length(sig),p,k,byrow=TRUE)
+            
+            # initial values for the optimizer
+             if(is.null(param[["sigma"]])==TRUE){
+                 sig1<-varBM(tree,data,n,k)
+                 starting<-sym.unpar_off(sig1)
+                 varval<-unlist(lapply(1:p,function(x){diag(sig1)}))
+                 starting<-c(starting,varval)
+             
+                }else{
+                if(length(param$sigma[[1]])==npar+k){
+                    starting<-sym.unpar_off(sym.par(param$sigma[[1]]))
+                    varval<-lapply(1:length(param$sigma),function(x){diag(sym.par(param$sigma[[1]]))})
+                }else{
+                    starting<-sym.unpar_off(param$sigma[[1]])
+                    varval<-unlist(lapply(1:length(param$sigma),function(x){diag(param$sigma[[x]])}))
+                }
+                starting<-c(starting,varval)
+                if(length(starting)!=p*k+npar){stop("The number of starting values for the rates matrix do not match, see ?mvBM for providing user specified starting values")}
+                }
+            
+
+            
+##---------------------Optimization BMM proportional--------------------------##
+        }else if(param$constraint=="proportional"){
+            
+              npar=(k*(k+1)/2)
+            # initial values for the optimizer
+             if(is.null(param[["sigma"]])==TRUE){
+                sig1<-varBM(tree,data,n,k)
+                starting<-sym.unpar(sig1)
+            }else{
+                if(length(param$sigma)==npar){
+                    starting<-param$sigma
+                }else{
+                    starting<-sym.unpar(param$sigma)
+                }
+                if(length(starting)!=(npar)){stop("The number of starting values for the rates matrix do not match, see ?mvBM for providing user specified starting values")}
+            }
+            proportionalval<-rep(1,p-1)
+            starting<-c(proportionalval,starting)
+            index.mat<-NULL
+       
         }else{
 ##---------------------Optimization BMM constrained---------------------------##
         # number of parameters for the constrained model
@@ -484,9 +602,9 @@ LL<--estim$value
 # models parameters
 if(model=="BMM"){
     if(param$smean==TRUE){
-        nparam=k+length(unique(index.mat))#k+(p*k) = p for each regimes, k for each rates, k for each ancestral states   or(k+length(unique(index.mat))?
+        nparam=k+length(unique(estim$par))#k+(p*k) = p for each regimes, k for each rates, k for each ancestral states   or(k+length(unique(index.mat))?
     }else{
-        nparam=k*p+length(unique(index.mat))
+        nparam=k*p+length(unique(estim$par))
     }
 }else if(model=="BM1"){
 nparam=k+length(estim$par)        #k+k= k for each rates and k for each ancestral states
@@ -521,6 +639,12 @@ if(echo==TRUE){
 cat("\n")
 if(constraint==TRUE | constraint=="diagonal"){
 cat("-- Summary results for multiple constrained rates",model,"model --","\n")
+}else if(constraint=="correlation"){
+cat("-- Summary results for common correlation ",model,"model --","\n")
+}else if(constraint=="shared"){
+cat("-- Summary results for shared eigenvectors ",model,"model --","\n")
+}else if(constraint=="proportional"){
+cat("-- Summary results for proportional rates matrices ",model,"model --","\n")
 }else{
 cat("-- Summary results for multiple rates",model,"model --","\n")
 }
@@ -539,7 +663,8 @@ print(anc)
 cat("\n")
     }
 ##-------------------Save infos in parameters---------------------------------##
-param$model<-if(constraint==TRUE){paste(model," constrained")}else{model}
+param$model<-model
+param$constraint<-constraint
 param$nparam<-nparam
 param$nbspecies<-n
 param$ntraits<-k

@@ -76,8 +76,8 @@ The "method" argument allows the user to try different algorithms for computing 
 The "param" list arguments:
 
 "constraint" - The "constraint" argument in the "param" list allows the user to compute the joint likelihood for each trait by assuming they evolved independently (constraint="diagonal"). If "constraint=TRUE", the model forces the sigma values for each studied trait to be the same using the constrained Cholesky decomposition proposed by Adams (2013), which allows considering the covariations between traits.
-This approach is extended here to the multi-rate case, by specifying that the rates must be the same in different parts of the tree (common selective regime).
-Significance of model fit can be assessed using the "LRT" function. See example below and ?LRT.
+This approach is extended here to the multi-rate case, by specifying that the rates must be the same in different parts of the tree (common selective regime). It's also possible to constraint the rates matrices in the "BMM" model to share the same eigen vectors; i.e. same variance but different covariances (constraint="shared"); same correlation but different variances (constraint="correlation"); or to fit a model with different but proportional rates matrices (constraint="proportional").
+Significance of nested model fit can be assessed using the "LRT" function. See example below and ?LRT.
 
 "smean" - Default set to TRUE. If FALSE, the ancestral state for each selective regime is estimated (e.g., Thomas et al., 2006).
 

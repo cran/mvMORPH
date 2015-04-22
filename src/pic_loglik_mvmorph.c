@@ -126,9 +126,13 @@ static void phylo_pic(int *ind, int *ntotal, int *numbnode, int *nsp, int *edge1
 // 2-Ornstein-Uhlenbeck process
 // 3-Brownian Motion
 // 4-Generalized Brownian Motion
-// 5-Generalized Brownian Motion on a single topology
-// 6-Generalized Brownian Motion on a single topology- ancestral state estimation
-// 7-default - Brownian Motion on a single topology
+// 5-Generalized Brownian Motion - ancestral state estimation
+// 6-Generalized Brownian Motion on a single topology
+// 7-Generalized Brownian Motion on a single topology- ancestral state estimation
+// 8-Generalized Brownian Motion on a single topology- sigma estimation
+// 9-Generalized Brownian Motion - sigma estimation
+// 10-default - Brownian Motion on a single topology
+
 
 SEXP PIC_gen(SEXP x, SEXP n, SEXP Nnode, SEXP nsp, SEXP edge1, SEXP edge2, SEXP edgelength, SEXP times, SEXP rate, SEXP Tmax, SEXP Model, SEXP mu, SEXP sigma){
   int nodnbtr, numbnod, ntip, i, j, ntot, ntraits, dimrtrait, f, model, info = 0, neg = 0;
@@ -171,7 +175,7 @@ SEXP PIC_gen(SEXP x, SEXP n, SEXP Nnode, SEXP nsp, SEXP edge1, SEXP edge2, SEXP 
  for(f = 0; f < ntraits; f++){
    //temporary allocation of vector for blength
    if(REAL(rate)[f]==0.0 & model==1 || REAL(rate)[f]==0.0 & model==2 ){
-       model=7; //change to 3 for a general model
+       model=10; //change to 3 for a general model
      }
      
    // arbre transformé par traits
@@ -186,20 +190,33 @@ SEXP PIC_gen(SEXP x, SEXP n, SEXP Nnode, SEXP nsp, SEXP edge1, SEXP edge2, SEXP 
              break;
              
          case 3:
-             copybrlength(&ntip, REAL(VECTOR_ELT(edgelength,f)), REAL(tempblength));
+             copybrlength(&ntip, REAL(VECTOR_ELT(edgelength,f)), REAL(tempblength)); // estimate sigma & theta
              break;
              
          case 4:
-             copybrlength(&ntip, REAL(VECTOR_ELT(edgelength,f)), REAL(tempblength));
+             copybrlength(&ntip, REAL(VECTOR_ELT(edgelength,f)), REAL(tempblength)); // user sigma & theta
              break;
              
          case 5:
-             copybrlength(&ntip, REAL(VECTOR_ELT(edgelength,0)), REAL(tempblength));
+             copybrlength(&ntip, REAL(VECTOR_ELT(edgelength,f)), REAL(tempblength)); // user sigma estimated theta
              break;
              
          case 6:
-             copybrlength(&ntip, REAL(VECTOR_ELT(edgelength,0)), REAL(tempblength));
+             copybrlength(&ntip, REAL(VECTOR_ELT(edgelength,0)), REAL(tempblength)); // 1 topo. user sigma & theta
              break;
+             
+         case 7:
+             copybrlength(&ntip, REAL(VECTOR_ELT(edgelength,0)), REAL(tempblength)); // 1 topo. user sigma, estimated theta
+             break;
+             
+         case 8:
+             copybrlength(&ntip, REAL(VECTOR_ELT(edgelength,0)), REAL(tempblength)); // 1 topo. estimated sigma, user theta
+             break;
+             
+         case 9:
+             copybrlength(&ntip, REAL(VECTOR_ELT(edgelength,f)), REAL(tempblength)); // estimated sigma, user theta
+             break;
+
 
              
          default:
@@ -221,7 +238,7 @@ SEXP PIC_gen(SEXP x, SEXP n, SEXP Nnode, SEXP nsp, SEXP edge1, SEXP edge2, SEXP 
     SEXP Z = PROTECT(allocMatrix(REALSXP,ntraits,ntraits));
     
     // Sigma matrix is provided
-    if(model==4 || model==5 || model==6){
+    if(model==1 || model==4 || model==5 || model==6 || model==7){
         for(i=0; i<dimrtrait; i++) REAL(Z)[i]=REAL(sigma)[i];
     }else{
     // crossproduct of contrast matrix
@@ -259,7 +276,7 @@ SEXP PIC_gen(SEXP x, SEXP n, SEXP Nnode, SEXP nsp, SEXP edge1, SEXP edge2, SEXP 
     
     
     /* Compute the root variance for the Generalized Brownian Motion */
-    if(model==4 || model==5){
+    if(model==4 || model==6 || model==8 || model==9){
         
         for(i=0; i<ntraits; i++){
             REAL(muRoot)[i]=(REAL(ancstates)[i]-REAL(mu)[i])/sqrt(REAL(V)[i]);

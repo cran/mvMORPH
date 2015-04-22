@@ -10,9 +10,9 @@ This function fits multivariate Early Burst (EB) or ACDC models of evolution.
 %%  ~~ A concise (1-5 lines) description of what the function does. ~~
 }
 \usage{
-mvEB(tree, data, error = NULL, param = list(low = -3, up = 0), method = 
+mvEB(tree, data, error = NULL, param = list(up = 0), method = 
 	c("rpf", "sparse", "inverse", "pseudoinverse", "pic"), scale.height =
-	 FALSE, optimization = c("L-BFGS-B", "Nelder-Mead", "subplex"), 
+	 FALSE, optimization = c("Nelder-Mead", "L-BFGS-B", "subplex"), 
 	 control = list(maxit = 20000), precalc = NULL, diagnostic = TRUE, 
 	 echo = TRUE)
 }
@@ -69,7 +69,7 @@ The Early Burst model (Harmon et al. 2010) is a special case of the ACDC model o
 The "method" argument allows the user to try different algorithms for computing the log-likelihood. The "rpf" and "sparse" methods use fast GLS algorithms based on factorization for avoiding the computation of the inverse of the variance-covariance matrix and its determinant for the log-likelihood estimation. The "inverse" approach uses the "stable" standard explicit computation of the inverse and determinant of the matrix and is therefore slower. The "pseudoinverse" method uses a generalized inverse that is safer for matrix near singularity but very time consuming. The "pic" method uses a very fast algorithm based on independent contrasts. It should be used with strictly dichotomic trees (i.e., no polytomies) and is currently not available for the multivariate "BMM" model. See ?mvLL for more details on these computational methods.
 
 
-The "param" list can be used to set the lower (low, default value is -3) and upper (up, default value is 0 - i.e., Early Burst model) bounds for the estimation of the exponential rate (beta). The lower bound for decelerating rates (as assumed in Early Burst) could be fixed as log(min.rate) / T, where T is the depth of the tree and min.rate is the minimum rate that could be assumed for the model (following Slater and Pennell, 2014)
+The "param" list can be used to set the lower (low) and upper (up, default value is 0 - i.e., Early Burst model) bounds for the estimation of the exponential rate (beta). The default lower bound for decelerating rates (as assumed in Early Burst) is fixed as log(min.rate) / T, where T is the depth of the tree and min.rate is the minimum rate that could be assumed for the model (following Slater and Pennell, 2014; log(10^-5)/T). Bounds may need to be adjusted by hand for specific cases.
 
 Starting values for "sigma" and "beta" could also be provided through the "param" list.
 %%  ~~ If necessary, more details than the description above ~~
@@ -103,7 +103,10 @@ Slater G.J., Pennell M. 2014. Robust regression and posterior predictive simulat
 Julien Clavel
 %%  ~~who you are~~
 }
-
+\note{
+The derivative-free "Nelder-Mead" optimization method is used as default setting instead of "L-BFGS-B".
+%%  ~~further notes~~
+}
 
 %% ~Make other sections like Warning with \section{Warning }{....} ~
 
@@ -123,32 +126,22 @@ Julien Clavel
 # Simulated dataset
 set.seed(14)
 # Generating a random tree
-tree<-pbtree(n=50)
-
-# Setting the regime states of tip species
-sta<-as.vector(c(rep("Forest",20),rep("Savannah",30)))
-names(sta)<-tree$tip.label
-
-# Making the simmap tree with mapped states
-tree<-make.simmap(tree,sta , model="ER", nsim=1)
-col<-c("blue","orange"); names(col)<-c("Forest","Savannah")
-
-# Plot of the phylogeny for illustration
-plotSimmap(tree,col,fsize=0.6,node.numbers=FALSE,lwd=3, pts=FALSE)
+tree<-pbtree(n=50, scale=10)
 
 # Simulate the traits
 sigma<-matrix(c(0.1,0.05,0.05,0.1),2)
 theta<-c(0,0)
-beta<- -0.8
+beta<- -0.34 # 5 phylogenetic half-life ( log(2)/ (10/5) )
 data<-mvSIM(tree, param=list(sigma=sigma, beta=beta, ntraits=2, mu=theta,
             names_traits=c("head.size","mouth.size")), model="EB", nsim=1)
 
 ## Fitting the models
 mvEB(tree, data)
 mvEB(tree, data, method="pic")
+mvEB(tree, data, method="pic", param=list(low=log(10^-5)/10)) # avoid internal estimation
 
 # ACDC
-beta<- 0.5
+beta<- 0.34
 data<-mvSIM(tree, param=list(sigma=sigma, beta=beta, ntraits=2, mu=theta,
             names_traits=c("head.size","mouth.size")), model="EB", nsim=1)
 

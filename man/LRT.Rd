@@ -28,7 +28,7 @@ Whether to return the result or not.
 }
 }
 \details{
-The LRT function extracts the log-likelihood of two nested models to compute the loglikelihood-ratio statistic which is compared to a Chi-square distribution. Note that if the models are not nested, the LRT is not an appropriate test and you should rely instead on Information criteria and evidence ratios.
+The LRT function extracts the log-likelihood of two nested models to compute the loglikelihood-ratio statistic which is compared to a Chi-square distribution. Note that if the models are not nested, the LRT is not an appropriate test and you should rely instead on Information criteria, evidence ratios, or simulated distributions (e.g., Lewis et al. 2011).
 %%  ~~ If necessary, more details than the description above ~~
 }
 \value{
@@ -46,6 +46,9 @@ The LRT function extracts the log-likelihood of two nested models to compute the
 }
 \references{
 Neyman J., Pearson E.S. 1933. On the problem of the most efficient tests of statistical hypotheses. Philos. Trans. R. Soc. A. 231:289-337.
+
+Lewis F., Butler A., Gilbert L. 2011. A unified approach to model selection using the likelihood ratio test. Meth. Ecol. Evol. 2:155-162.
+
 %% ~put references to the literature/web site here ~
 }
 \author{

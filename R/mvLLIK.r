@@ -13,6 +13,7 @@
 mvLL<-function(tree,data,error=NULL,method=c("pic","rpf","sparse","inverse","pseudoinverse"), param=list(estim=TRUE, mu=0,sigma=0 ,D=NULL, check=TRUE), precalc=NULL){
 
     # select default method depending on data type for the tree object
+ method<-method[1]
  ntrait<-ncol(as.matrix(data))
  if(class(tree)=="phylo" | class(tree[[1]])=="phylo"){
             datatype<-"tree"
@@ -39,7 +40,6 @@ mvLL<-function(tree,data,error=NULL,method=c("pic","rpf","sparse","inverse","pse
         }
         
      
-    method<-method[1]
     if(datatype=="vcv" && method=="pic"){
           stop("object \"tree\" is not of class \"phylo\" try using methods \"sparse\", \"rpf\", \"inverse\" or \"pseudoinverse\", see details ?mvLL")
     }
@@ -87,38 +87,56 @@ switch(method,
                 # Change the way are computed the contrasts
                 # Generalized Brownian Motion?
                 if(param$estim==TRUE){
-                    mod<-3
-                }else{
-                    if(is.null(param[["mu"]])==TRUE & is.null(param[["sigma"]])==TRUE){
-                        warning("sigma value fixed to 1 in \"param\" list")
                         mod<-3
                         param$sigma<-1
-                    }
-                        if(is.null(param[["mu"]])==TRUE & is.null(param[["sigma"]])==FALSE){
-                            mod<-4
-                    }else{
-                        mod<-4
+                        param$mu<-1
+                }else{
+                    if(is.null(param[["mu"]])==TRUE & is.null(param[["sigma"]])==TRUE){
+                        warning("No values specified for sigma and mu in the \"param\" list, analytical MLE is computed")
+                        mod<-3
                         param$sigma<-1
+                        param$mu<-1
+                        
+                    }else if(is.null(param[["mu"]])==TRUE & is.null(param[["sigma"]])==FALSE){
+                        # estimate theta / user sigma
+                        mod<-5
+                        param$mu<-1
+                    }else if(is.null(param[["mu"]])==FALSE & is.null(param[["sigma"]])==TRUE){
+                        # estimate sigma / user theta
+                        mod<-9
+                        param$sigma<-1
+                    }else if(is.null(param[["mu"]])==FALSE & is.null(param[["sigma"]])==FALSE){
+                        # user sigma and theta
+                        mod<-4
                     }
                 }
 
-            }else{
+            }else{ # one tree
                 # Generalized Brownian Motion?
                 if(param$estim==TRUE){
-                    mod<-7 # meme topologie (sinon 3)
+                    mod<-10 # meme topologie (sinon 3)
+                    param$sigma<-1
+                    param$mu<-1
                 
                 }else{
                     if(is.null(param[["mu"]])==TRUE & is.null(param[["sigma"]])==TRUE){
-                        warning("sigma value fixed to 1 in \"param\" list")
-                        mod<-6
+                        warning("No values specified for sigma and mu in the \"param\" list, analytical MLE is computed")
+                        mod<-10
                         param$sigma<-1
-                    }
-                    if(is.null(param[["mu"]])==TRUE & is.null(param[["sigma"]])==FALSE){
-                        mod<-6
-                    }else{
-                        mod<-5 # ou 4 depend du nombre d'arbres
+                        param$mu<-1
+                    }else if(is.null(param[["mu"]])==TRUE & is.null(param[["sigma"]])==FALSE){
+                        # estimate theta/ user sigma
+                        mod<-7
+                        param$mu<-1
+                    }else if(is.null(param[["mu"]])==FALSE & is.null(param[["sigma"]])==TRUE){
+                        # user theta / estimate sigma
+                        mod<-8
                         param$sigma<-1
+                    }else if(is.null(param[["mu"]])==FALSE & is.null(param[["sigma"]])==FALSE){
+                        # user sigma and theta
+                        mod<-6
                     }
+
                 }
 
                 n=length(tree$tip.label)
@@ -128,37 +146,32 @@ switch(method,
                 }
                 value<-list(tree$edge.length)
             }
-
-          #  if(k>1 && param$estim==TRUE){
-          #      tree<-reorder(tree,"postorder")
-          #      value<-list(tree$edge.length)
-          #      mod<-4
-          #  }else if(k>1 && param$estim==FALSE){
-          #      tree<-reorder(tree,"postorder")
-          #      value<-list(tree$edge.length)
-          #      mod<-3
-          #  }else{
-          #      tree<-reorder(tree,"postorder")
-          #      value<-list(tree$edge.length)
-          #      }
         
         }else{
                 tree<-precalc$tree
                 # Generalized Brownian Motion?
                 if(param$estim==TRUE){
-                    mod<-7 # meme topologie (sinon 3)
+                    mod<-10 # meme topologie (sinon 3)
                 }else{
                     if(is.null(param[["mu"]])==TRUE & is.null(param[["sigma"]])==TRUE){
-                        warning("sigma value fixed to 1 in \"param\" list")
-                        mod<-6
+                        warning("No values specified for sigma and mu in the \"param\" list, analytical MLE is computed")
+                        mod<-10
                         param$sigma<-1
+                        param$mu<-1
                     }else if(is.null(param[["mu"]])==TRUE & is.null(param[["sigma"]])==FALSE){
-                        mod<-6
-                    }else{
-                        mod<-5 # ou 4 depend du nombre d'arbres
+                        # estimate theta/ user sigma
+                        mod<-7
+                        param$mu<-1
+                    }else if(is.null(param[["mu"]])==FALSE & is.null(param[["sigma"]])==TRUE){
+                        # user theta / estimate sigma
+                        mod<-8
                         param$sigma<-1
+                    }else if(is.null(param[["mu"]])==FALSE & is.null(param[["sigma"]])==FALSE){
+                        # user sigma and theta
+                        mod<-6
                     }
-                }
+
+                }#
                 
                 n=length(tree$tip.label)
                 k=dim(matrix(data,nrow=n))[2]

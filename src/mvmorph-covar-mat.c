@@ -47,7 +47,7 @@ if(sij!=0.){
 	exp2l[k+k*n] = exp(-lambda[k]*tj);
       }
         
-/* Calcul de G - Gardiner 2004 4.4.47 - Bartoszek et al. 2012 - Najfeld & Havel 1995 */    
+/* Calcul de G - Gardiner 2004 4.4.47 - Bartoszek et al. 2012 - Meucci  2010 */    
  for (k = 0; k < n; k++) {
 	for (l = 0; l < n; l++) {
 	 // if((lambda[k]+lambda[l]) != 0.0){

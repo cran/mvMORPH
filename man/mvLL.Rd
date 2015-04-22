@@ -76,11 +76,13 @@ You can choose to provide differently scaled trees for multivariate data with th
 }
 \references{
 Andersen B. S., Wasniewski J., Gustavson F. G. 2001. A recursive formulation of Cholesky
-factorization of a matrix in packed storage. ACM Trans. Math. Soft. 27 :214-244.
+factorization of a matrix in packed storage. ACM Trans. Math. Soft. 27:214-244.
 
 Freckleton R.P. 2012. Fast likelihood calculations for comparative analyses. Methods Ecol. Evol. 3:940-947.
 
 Golub G.H., Van Loan C.F. 2013. Matrix computations. Baltimore: The John Hopkins University Press.
+
+Gustavson, F.G., Wasniewski, J., Dongarra, J.J., Langou, J. 2010. Rectangular full packed format for Cholesky's algorithm: factorization, solution and inversion. ACM Trans. Math. Soft., 37:1-33.
 
 %% ~put references to the literature/web site here ~
 }

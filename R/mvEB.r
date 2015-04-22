@@ -8,7 +8,7 @@
 ##                                                                            ##
 ################################################################################
 
-mvEB<-function(tree, data, error=NULL, param=list(low=-3, up=0), method=c("rpf","sparse","inverse","pseudoinverse","pic"), scale.height=FALSE, optimization=c("L-BFGS-B","Nelder-Mead","subplex"), control=list(maxit=20000), precalc=NULL, diagnostic=TRUE, echo=TRUE){
+mvEB<-function(tree, data, error=NULL, param=list(up=0), method=c("rpf","sparse","inverse","pseudoinverse","pic"), scale.height=FALSE, optimization=c("Nelder-Mead","L-BFGS-B","subplex"), control=list(maxit=20000), precalc=NULL, diagnostic=TRUE, echo=TRUE){
 
 #set data as a matrix if a vector is provided instead
 if(!is.matrix(data)){data<-as.matrix(data)}
@@ -37,11 +37,13 @@ k<-1
 npar<-(k*(k+1)/2)
 
 if(is.null(param[["low"]])==TRUE){
-    cat("No lower bound provided. Use of default setting \"-3\"")
-    low<-param$low<- -3
+    if(scale.height==FALSE) maxHeight<-max(nodeHeights(tree))
+    low<-param$low<- log(10^-5)/maxHeight # Slater & Pennell 2013
+   if(echo==TRUE) cat("No lower bound provided. Use of default setting \" ",low,"\"")
+
 }else{low<-param$low}
 if(is.null(param[["up"]])==TRUE){
-    cat("No upper bound provided. Use of default setting \"0\"")
+  if(echo==TRUE)  cat("No upper bound provided. Use of default setting \"0\"")
     up<-param$up<-0
 }else{up<-param$up}
 
@@ -122,7 +124,7 @@ switch(method,
 },
 "pic"={
     eb_fun_matrix<-function(beta,sig,n,k,precalcMat,C,D,dat,error,method,precalc){
-        res<-.Call("PIC_gen", x=dat, n=as.integer(k), Nnode=as.integer(tree$Nnode), nsp=as.integer(n), edge1=as.integer(tree$edge[,1]), edge2=as.integer(tree$edge[,2]), edgelength=list(tree$edge.length), times=tt, rate=as.double(rep(beta,k)), Tmax=1, Model=as.integer(1), mu=1, sigma=1)
+        res<-.Call("PIC_gen", x=dat, n=as.integer(k), Nnode=as.integer(tree$Nnode), nsp=as.integer(n), edge1=as.integer(tree$edge[,1]), edge2=as.integer(tree$edge[,2]), edgelength=list(tree$edge.length), times=tt, rate=as.double(rep(beta,k)), Tmax=1, Model=as.integer(1), mu=1, sigma=sig)
         logl<- -0.5 * ( n * k * log( 2 * pi) +  res[[5]] + n * res[[6]]  + res[[4]] )
        return(list(logl=logl,anc=res[[7]], sigma=res[[2]]))
     }
@@ -144,23 +146,10 @@ likEB <- function(dat, error, C, D, beta, sig, k, n, method, precalc, precalcMat
 ##---------------Optimizing function------------------------------------------##
 # initial value for exponent parameter
 if(is.null(param[["beta"]])==TRUE){
-ebval<-runif(1,param$low,param$up)
+ebval<-runif(1,param$low,param$up)*0.1
 }else{
 ebval<-param$beta
 }
-
-if(method=="pic"){
-    warning<-eval_polytom(tree)
-    tree<-reorder(tree,"postorder")
-    # times from the root
-    tt<-.Call("times_root", brlength=tree$edge.length, edge1=as.integer(tree$edge[,1]), edge2=as.integer(tree$edge[,2]), ntip=as.integer(n), Nnode=as.integer(tree$Nnode))
-    
-    if(optimization=="subplex"){
-        estim <- optim(par=c(ebval), fn = function (par) {likEB(dat=as.matrix(data), error=error, C=C, D=D, beta=ratevalue(up,low,par[1]), sig=NULL,k=k, n=n, method=method, precalc=precalc, precalcMat=precalcMat)$loglik }, hessian=TRUE, control=control)
-    }else{
-        estim <- optim(par=c(ebval), fn = function (par) {likEB(dat=as.matrix(data), error=error, C=C, D=D, beta=ratevalue(up,low,par[1]), sig=NULL,k=k, n=n, method=method, precalc=precalc, precalcMat=precalcMat)$loglik }, gr=NULL, hessian=TRUE, method = optimization, control=control)
-    }
-}else{
 
 # initial values for the optimizer
 if(is.null(param[["sigma"]])==TRUE){
@@ -170,19 +159,29 @@ sig1<-sym.unpar(sig1)
 sig1<-param$sigma
 }
 
+if(method=="pic"){
+    warning<-eval_polytom(tree)
+    tree<-reorder(tree,"postorder")
+    # times from the root
+    tt<-.Call("times_root", brlength=tree$edge.length, edge1=as.integer(tree$edge[,1]), edge2=as.integer(tree$edge[,2]), ntip=as.integer(n), Nnode=as.integer(tree$Nnode))
+    
+    if(optimization=="subplex"){
+        estim <- subplex(par=c(ebval,sig1), fn = function (par) {likEB(dat=as.matrix(data), error=error, C=C, D=D, beta=ratevalue(up,low,par[1]), sig=sym.par(par[1+seq_len(npar)]),k=k, n=n, method=method, precalc=precalc, precalcMat=precalcMat)$loglik }, hessian=TRUE, control=control)
+    }else{
+        estim <- optim(par=c(ebval,sig1), fn = function (par) {likEB(dat=as.matrix(data), error=error, C=C, D=D, beta=ratevalue(up,low,par[1]), sig=sym.par(par[1+seq_len(npar)]),k=k, n=n, method=method, precalc=precalc, precalcMat=precalcMat)$loglik }, gr=NULL, hessian=TRUE, method = optimization, control=control)
+    }
+}else{
+
+
 if(optimization=="subplex"){
-    estim <- optim(par=c(ebval,sig1), fn = function (par) {likEB(dat=as.matrix(data), error=error, C=C, D=D, beta=ratevalue(up,low,par[1]), sig=sym.par(par[1+seq_len(npar)]),k=k, n=n, method=method, precalc=precalc, precalcMat=precalcMat)$loglik }, hessian=TRUE, control=control)
+    estim <- subplex(par=c(ebval,sig1), fn = function (par) {likEB(dat=as.matrix(data), error=error, C=C, D=D, beta=ratevalue(up,low,par[1]), sig=sym.par(par[1+seq_len(npar)]),k=k, n=n, method=method, precalc=precalc, precalcMat=precalcMat)$loglik }, hessian=TRUE, control=control)
    }else{
     estim <- optim(par=c(ebval,sig1), fn = function (par) {likEB(dat=as.matrix(data), error=error, C=C, D=D, beta=ratevalue(up,low,par[1]), sig=sym.par(par[1+seq_len(npar)]),k=k, n=n, method=method, precalc=precalc, precalcMat=precalcMat)$loglik }, gr=NULL, hessian=TRUE, method = optimization, control=control)
    }
 }
 ##-----------------Summarizing results----------------------------------------##
 # sigma matrix
-if(method=="pic"){
-   resultList<-eb_fun_matrix(beta=ratevalue(up,low,estim$par[1]),sig=NULL,n,k,precalcMat=NULL,C=NULL,D=NULL,dat=as.matrix(data),error=NULL,method,precalc=NULL)$sigma
-}else{
-    resultList<-sym.par(estim$par[1+seq_len(npar)])
-}
+resultList<-sym.par(estim$par[1+seq_len(npar)])
 colnames(resultList)<-colnames(data)
 rownames(resultList)<-colnames(data)
 #ancestral states estimates

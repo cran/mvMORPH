@@ -11,13 +11,24 @@
 
 mvBM<-function(tree, data, error=NULL, model=c("BMM","BM1"),param=list(constraint=FALSE, smean=TRUE), method=c("rpf","pic","sparse","inverse","pseudoinverse"), scale.height=FALSE, optimization=c("L-BFGS-B","Nelder-Mead","subplex"), control=list(maxit=20000), precalc=NULL, diagnostic=TRUE, echo=TRUE){
 
-#set data as a matrix if a vector is provided instead
-if(!is.matrix(data)){data<-as.matrix(data)}
-# bind error to a vector
-if(!is.null(error)){error<-as.vector(error)}
 # select default model
 model<-model[1]
 method<-method[1]
+#set data as a matrix if a vector is provided instead
+if(!is.matrix(data)){data<-as.matrix(data)}
+# Check if there is missing cases
+NA_val<-FALSE
+Indice_NA<-NULL
+if(any(is.na(data))){
+    if(method!="pic" & method!="sparse"){
+        NA_val<-TRUE
+    }else{
+        stop("NA values are allowed only with the \"rpf\",\"inverse\" or \"pseudoinverse\" methods")
+    }
+    Indice_NA<-which(is.na(as.vector(data)))
+}
+# bind error to a vector
+if(!is.null(error)){error<-as.vector(error)}
 # number of species (tip)
 n<-dim(data)[1]
 # number of variables
@@ -81,7 +92,7 @@ if(scale.height==TRUE){
 }
 
 if(method=="pic"){
-    ind<-reorder(tree,"postorder", index.only=TRUE)
+    ind<-reorder.phylo(tree,"postorder", index.only=TRUE)
     tree$edge<-tree$edge[ind,]
     tree$edge.length<-tree$edge.length[ind]
     value<-list(tree$edge.length)
@@ -168,28 +179,28 @@ switch(method,
 "rpf"={
     bm_fun_matrix<-function(C,sig,dat,D,precalcMat,n,k,error,method){
     V<-.Call("kroneckerSum", R=sig, C=C, Rrows=as.integer(k),  Crows=as.integer(n), dimlist=as.integer(p))
-    loglik<-loglik_mvmorph(dat,V,D,n,k,error=error,precalc=precalc,method=method,ch=ch,precalcMat=precalcMat,sizeD=ncol(D))
+    loglik<-loglik_mvmorph(dat,V,D,n,k,error=error,precalc=precalc,method=method,ch=ch,precalcMat=precalcMat,sizeD=ncol(D),NA_val=NA_val,Indice_NA=Indice_NA)
     return(loglik)
     }
 },
 "sparse"={
     bm_fun_matrix<-function(C,sig,dat,D,precalcMat,n,k,error,method){
     V<-.Call("kroneckerSumSpar", R=sig, C=C, Rrows=as.integer(k),  Crows=as.integer(n),  dimlist=as.integer(p), IA=IAr, JA=JAr, A=precalcMat@entries)
-    loglik<-loglik_mvmorph(dat,V,D,n,k,error=error,precalc=precalc,method=method,ch=ch,precalcMat=precalcMat,sizeD=ncol(D))
+    loglik<-loglik_mvmorph(dat,V,D,n,k,error=error,precalc=precalc,method=method,ch=ch,precalcMat=precalcMat,sizeD=ncol(D),NA_val=FALSE,Indice_NA=NULL)
     return(loglik)
     }
 },
 "pseudoinverse"={
     bm_fun_matrix<-function(C,sig,dat,D,precalcMat,n,k,error,method){
     V<-.Call("kroneckerSum", R=sig, C=C, Rrows=as.integer(k),  Crows=as.integer(n), dimlist=as.integer(p))
-    loglik<-loglik_mvmorph(dat,V,D,n,k,error=error,precalc=precalc,method=method,ch=ch,precalcMat=precalcMat,sizeD=ncol(D))
+    loglik<-loglik_mvmorph(dat,V,D,n,k,error=error,precalc=precalc,method=method,ch=ch,precalcMat=precalcMat,sizeD=ncol(D),NA_val=NA_val,Indice_NA=Indice_NA)
     return(loglik)
     }
 },
 "inverse"={
     bm_fun_matrix<-function(C,sig,dat,D,precalcMat,n,k,error,method){
     V<-.Call("kroneckerSum", R=sig, C=C, Rrows=as.integer(k),  Crows=as.integer(n), dimlist=as.integer(p))
-    loglik<-loglik_mvmorph(dat,V,D,n,k,error=error,precalc=precalc,method=method,ch=ch,precalcMat=precalcMat,sizeD=ncol(D))
+    loglik<-loglik_mvmorph(dat,V,D,n,k,error=error,precalc=precalc,method=method,ch=ch,precalcMat=precalcMat,sizeD=ncol(D),NA_val=NA_val,Indice_NA=Indice_NA)
     return(loglik)
     }
 },
@@ -212,28 +223,28 @@ switch(method,
 "rpf"={
 bm_fun_matrix<-function(C,sig,dat,D,precalcMat,n,k,error,method){
     V<-.Call("kronecker_mvmorph", R=sig, C=C, Rrows=as.integer(k),  Crows=as.integer(n))
-    loglik<-loglik_mvmorph(dat,V,D,n,k,error=error,precalc=precalc,method=method,ch=ch,precalcMat=precalcMat,sizeD=ncol(D))
+    loglik<-loglik_mvmorph(dat,V,D,n,k,error=error,precalc=precalc,method=method,ch=ch,precalcMat=precalcMat,sizeD=ncol(D),NA_val=NA_val,Indice_NA=Indice_NA)
     return(loglik)
     }
 },
 "sparse"={
 bm_fun_matrix<-function(C,sig,dat,D,precalcMat,n,k,error,method){
     V<-.Call("kroneckerSumSpar", R=list(sig), C=list(C), Rrows=as.integer(k),  Crows=as.integer(n),  dimlist=as.integer(1), IA=IAr, JA=JAr, A=precalcMat@entries)
-    loglik<-loglik_mvmorph(dat,V,D,n,k,error=error,precalc=precalc,method=method,ch=ch,precalcMat=precalcMat,sizeD=ncol(D))
+    loglik<-loglik_mvmorph(dat,V,D,n,k,error=error,precalc=precalc,method=method,ch=ch,precalcMat=precalcMat,sizeD=ncol(D),NA_val=FALSE,Indice_NA=NULL)
     return(loglik)
     }
 },
 "pseudoinverse"={
 bm_fun_matrix<-function(C,sig,dat,D,precalcMat,n,k,error,method){
     V<-.Call("kronecker_mvmorph", R=sig, C=C, Rrows=as.integer(k),  Crows=as.integer(n))
-    loglik<-loglik_mvmorph(dat,V,D,n,k,error=error,precalc=precalc,method=method,ch=ch,precalcMat=precalcMat,sizeD=ncol(D))
+    loglik<-loglik_mvmorph(dat,V,D,n,k,error=error,precalc=precalc,method=method,ch=ch,precalcMat=precalcMat,sizeD=ncol(D),NA_val=NA_val,Indice_NA=Indice_NA)
     return(loglik)
     }
 },
 "inverse"={
 bm_fun_matrix<-function(C,sig,dat,D,precalcMat,n,k,error,method){
     V<-.Call("kronecker_mvmorph", R=sig, C=C, Rrows=as.integer(k),  Crows=as.integer(n))
-    loglik<-loglik_mvmorph(dat,V,D,n,k,error=error,precalc=precalc,method=method,ch=ch,precalcMat=precalcMat,sizeD=ncol(D))
+    loglik<-loglik_mvmorph(dat,V,D,n,k,error=error,precalc=precalc,method=method,ch=ch,precalcMat=precalcMat,sizeD=ncol(D),NA_val=NA_val,Indice_NA=Indice_NA)
     return(loglik)
     }
 },
@@ -406,7 +417,7 @@ if(model=="BMM"){
                starting<-c(varval,starting)
                 if(length(starting)!=p*npar+k){stop("The number of starting values for the rates matrix do not match, see ?mvBM for providing user specified starting values")}
             }
-            ##---------------------Optimization BMM shared eigenvectors-------------------##
+##---------------------Optimization BMM shared eigenvectors-------------------##
         }else if(param$constraint=="correlation"){
             
             # number of parameters
@@ -613,6 +624,7 @@ nparam=k+length(estim$par)        #k+k= k for each rates and k for each ancestra
 AIC<--2*LL+2*nparam
 # AIC corrected
 AICc<-AIC+((2*nparam*(nparam+1))/(n-nparam-1)) #Hurvich et Tsai, 1989
+# Maybe n need to be changed by length(data)? Moreover it can change when there is missing cases
 ##---------------------Diagnostics--------------------------------------------##
 
 if(estim$convergence==0 & diagnostic==TRUE){  

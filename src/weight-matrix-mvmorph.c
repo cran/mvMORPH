@@ -2,6 +2,7 @@
 /*-mvMORPH 1.0.3 - 2014 - Julien Clavel - julien.clavel@hotmail.fr--------------------*/
 /*-scale the weight matrix so that the rows sum to 1----------------------------------*/
 /*-generalization to non-ultrametric trees and non-symmetric A matrix-----------------*/
+/*-Modified with permission from A. King OUCH ----------------------------------------*/
 
 #include "covar.h"
 

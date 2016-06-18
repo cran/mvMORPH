@@ -29,7 +29,7 @@ set.seed(101)
 alpha<-matrix(c(1.1,-0.9,-0.9,1),2)
 sigma<-matrix(c(0.35,0.06,0.06,0.35),2)
 theta<-c(5.5,5.1,1.2,1.4)
-data<-mvSIM(tree, param=list(sigma=sigma, alpha=alpha, ntraits=2, mu=theta, 
+data<-mvSIM(tree, param=list(sigma=sigma, alpha=alpha, ntraits=2, theta=theta, 
 names_traits=c("limb.length","limb.width")), model="OUM", nsim=1)
 
 
@@ -154,7 +154,7 @@ theta<-c(0,0)
 
 ###---------------------Simulate the traits------------------###
 
-data<-mvSIM(tree, param=list(sigma=list(sigma_1,sigma_2), ntraits=2, mu=theta, 
+data<-mvSIM(tree, param=list(sigma=list(sigma_1,sigma_2), theta=theta, 
                              names_traits=c("Trait 1","Trait 2")), model="BMM", nsim=1)
 
 
@@ -176,8 +176,12 @@ model_3<-mvBM(tree, data, param=list(constraint="shared")
 model_4<-mvBM(tree, data, param=list(constraint="correlation")
               , diagnostic=FALSE, echo=FALSE)
 
-# BMM - (independent rate matrices)
-model_5<-mvBM(tree, data, model="BMM", diagnostic=FALSE, echo=FALSE)
+# BMM - (Similar variances between rate matrices)
+model_5<-mvBM(tree, data, param=list(constraint="variance")
+              , diagnostic=FALSE, echo=FALSE)
+
+# BMM - (Independent rate matrices)
+model_6<-mvBM(tree, data, model="BMM", diagnostic=FALSE, echo=FALSE)
 
 # Compare the models with AIC
 AIC(model_1)
@@ -190,21 +194,49 @@ AIC(model_4)
 
 AIC(model_5)
 
+AIC(model_6)
+
 # Test significance with LRT
+LRT(model_6,model_5)
 
-LRT(model_5,model_4)
+LRT(model_6,model_4)
 
-LRT(model_5,model_3)
+LRT(model_6,model_3)
 
-LRT(model_5,model_2)
+LRT(model_6,model_2)
 
-LRT(model_5,model_1)
+LRT(model_6,model_1)
 
 
 ## ---- comment=">"--------------------------------------------------------
 # Forest species
-cov2cor(model_5$sigma[,,1])
+cov2cor(model_6$sigma[,,1])
 
 # Savannah species
-cov2cor(model_5$sigma[,,2])
+cov2cor(model_6$sigma[,,2])
+
+## ---- comment=">"--------------------------------------------------------
+
+require(car)
+
+plot(data,asp=1,ylim=c(-1,1),xlim=c(-1,1), cex=0.8, main="proportional")
+ellipse(c(0,0), model_2$sigma[,,1], sqrt(qchisq(.95,2)))
+ellipse(c(0,0), model_2$sigma[,,2], sqrt(qchisq(.95,2)), col=3, lty=2)
+
+plot(data,asp=1,ylim=c(-1,1),xlim=c(-1,1),  cex=0.8, main="shared eigenvectors")
+ellipse(c(0,0), model_3$sigma[,,1], sqrt(qchisq(.95,2)))
+ellipse(c(0,0), model_3$sigma[,,2], sqrt(qchisq(.95,2)), col=3, lty=2)
+
+plot(data,asp=1,ylim=c(-1,1),xlim=c(-1,1), cex=0.8, main="correlations")
+ellipse(c(0,0), model_4$sigma[,,1], sqrt(qchisq(.95,2)))
+ellipse(c(0,0), model_4$sigma[,,2], sqrt(qchisq(.95,2)), col=3, lty=2)
+
+plot(data,asp=1,ylim=c(-1,1),xlim=c(-1,1), cex=0.8, main="variance")
+ellipse(c(0,0), model_5$sigma[,,1], sqrt(qchisq(.95,2)))
+ellipse(c(0,0), model_5$sigma[,,2], sqrt(qchisq(.95,2)), col=3, lty=2)
+
+results <- list(model_1,model_2,model_3,model_4,model_5,model_6)
+
+aicw(results)
+
 

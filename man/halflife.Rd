@@ -6,7 +6,7 @@ The phylogenetic half-life for an Ornstein-Uhlenbeck process
 %%  ~~function to do ... ~~
 }
 \description{
-This function return the phylogenetic half-life for an Ornstein-Uhlenbeck process (object of class "ou").
+This function returns the phylogenetic half-life for an Ornstein-Uhlenbeck process (object of class "ou").
 %%  ~~ A concise (1-5 lines) description of what the function does. ~~
 }
 \usage{
@@ -21,7 +21,7 @@ Object fitted with the "mvOU" function.
 }
  
 \details{
-The phylogenetic half-life describe the time to move halfway from the ancestral state to the primary optimum (Hansen, 1997).
+The phylogenetic half-life describes the time to move halfway from the ancestral state to the primary optimum (Hansen, 1997).
 The multivariate counterpart is computed on the eigenvalues of the "selection" matrix (Bartoszeck et al. 2012).
 %%  ~~ If necessary, more details than the description above ~~
 }
@@ -54,8 +54,6 @@ Julien Clavel
 %% ~~objects to See Also as \code{\link{help}}, ~~~
 }
 \examples{
-## Toy example
-
 # Simulated dataset
 set.seed(14)
 # Generating a random tree
@@ -75,7 +73,7 @@ plotSimmap(tree,col,fsize=0.6,node.numbers=FALSE,lwd=3, pts=FALSE)
 alpha<-matrix(c(2,0.5,0.5,1),2)
 sigma<-matrix(c(0.1,0.05,0.05,0.1),2)
 theta<-c(2,3,1,1.3)
-data<-mvSIM(tree, param=list(sigma=sigma, alpha=alpha, ntraits=2, mu=theta,
+data<-mvSIM(tree, param=list(sigma=sigma, alpha=alpha, ntraits=2, theta=theta,
             names_traits=c("head.size","mouth.size")), model="OUM", nsim=1)
 
 ## Fitting the models

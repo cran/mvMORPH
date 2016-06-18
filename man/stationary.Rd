@@ -6,7 +6,7 @@ The stationary variance of an Ornstein-Uhlenbeck process
 %%  ~~function to do ... ~~
 }
 \description{
-This function return the stationary variance for an Ornstein-Uhlenbeck process (object of class "ou").
+This function returns the stationary variance for an Ornstein-Uhlenbeck process (object of class "ou").
 %%  ~~ A concise (1-5 lines) description of what the function does. ~~
 }
 \usage{
@@ -21,8 +21,8 @@ Object fitted with the "mvOU" function.
 }
  
 \details{
-This function compute the dispersion parameter of the Ornstein-Uhlenbeck process (i.e., the expected variance when the process is stationary).
-The multivariate normal stationary distribution of the Ornstein-Uhlenbeck process is computed following Bartoszeck et al. (2012).
+This function computes the dispersion parameter of the Ornstein-Uhlenbeck process (i.e., the expected variance when the process is stationary).
+The multivariate normal stationary distribution of the Ornstein-Uhlenbeck process is computed following Bartoszek et al. (2012).
 %%  ~~ If necessary, more details than the description above ~~
 }
 \value{
@@ -52,8 +52,6 @@ Julien Clavel
 %% ~~objects to See Also as \code{\link{help}}, ~~~
 }
 \examples{
-## Toy example
-
 # Simulated dataset
 set.seed(14)
 # Generating a random tree
@@ -73,7 +71,7 @@ plotSimmap(tree,col,fsize=0.6,node.numbers=FALSE,lwd=3, pts=FALSE)
 alpha<-matrix(c(2,0.5,0.5,1),2)
 sigma<-matrix(c(0.1,0.05,0.05,0.1),2)
 theta<-c(2,3,1,1.3)
-data<-mvSIM(tree, param=list(sigma=sigma, alpha=alpha, ntraits=2, mu=theta,
+data<-mvSIM(tree, param=list(sigma=sigma, alpha=alpha, ntraits=2, theta=theta,
             names_traits=c("head.size","mouth.size")), model="OUM", nsim=1)
 
 ## Fitting the models
@@ -84,7 +82,7 @@ stationary(result)
 
 # Expected values when the process is stationary
 expected<-list(alpha=alpha,sigma=sigma)
-class(expected)<-c("mvmorph","ou")
+class(expected)<-c("mvmorph","mvmorph.ou")
 stationary(expected)
 
 }

@@ -6,13 +6,13 @@
 Multivariate Comparative Methods for Fitting Evolutionary Models to Morphometric Data
 }
 \description{
-Fits of multivariate evolutionary models on trees (with one or multiple selective regimes) dedicated to morphometrics or biometric continuous data with covariation. Testing for a phylogenetic signal in a multivariate dataset (either on fossil or extant taxa), changes in rate or mode of evolution of continuous traits, simulating multivariate traits evolution, computing the likelihood of multivariate models and other things...
+Fits of multivariate evolutionary models on trees (with one or multiple selective regimes) and time-series dedicated to morphometrics or biometric continuous data with covariation. Testing for a phylogenetic signal in a multivariate dataset (including fossil and/or extant taxa), changes in rate or mode of evolution of continuous traits, simulating multivariate traits evolution, computing the likelihood of multivariate models, accounts for measurement errors and missing data, and other things...
 }
 \details{
 \tabular{ll}{
 Package: \tab mvMORPH\cr
 Type: \tab Package\cr
-Version: \tab 1.0.6\cr
+Version: \tab 1.0.7\cr
 Date: \tab 2013-07-22\cr
 License: \tab GPL (>=2.0)\cr
 }
@@ -23,7 +23,7 @@ Julien Clavel
 Maintainer: Julien Clavel <julien.clavel@hotmail.fr>
 }
 \references{
-  Clavel et al. (2015). mvMORPH: an R package for fitting multivariate evolutionary models to morphometric data. Methods in Ecology and Evolution: doi: 10.1111/2041-210X.12420.
+  Clavel et al. (2015). mvMORPH: an R package for fitting multivariate evolutionary models to morphometric data. Methods in Ecology and Evolution, 6(11):1311-1319. doi: 10.1111/2041-210X.12420.
 }
 \keyword{ OU }
 \keyword{ BM }
@@ -38,13 +38,15 @@ Maintainer: Julien Clavel <julien.clavel@hotmail.fr>
 \code{\link{mvBM}}
 \code{\link{mvEB}}
 \code{\link{mvSHIFT}}
+\code{\link{mvOUTS}}
+\code{\link{mvRWTS}}
 \code{\link{mvSIM}}
 \code{\link{mvLL}}
 \code{\link{LRT}}
 \code{\link{halflife}}
 \code{\link{stationary}}
-\code{\link{brownie.lite}}
-\code{\link{evol.vcv}}
+\code{\link{estim}}
+\code{\link{aicw}}
 }
 
 

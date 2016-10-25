@@ -8,36 +8,40 @@ The package is designed to handle ultrametric and non-ultrametric trees (*i.e.* 
 
 See the packages vignettes for details and examples: browseVignettes("mvMORPH").
 
-**mvMORPH 1.0.7**
+**mvMORPH 1.0.8**
 
-1. This is the version 1.0.7:
+1. This is the version 1.0.8:
   + Allows estimating the missing cases (NA)
   + Allows estimating trends
   + User defined constrained models and parameterizations  
   + Return the log-likelihood function
-  + Package vignette 2
+  + Simulating traits on package vignette
   + Multivariate models for time-series (TS)
   + Partial implementation of a tests-suite
 
 2. _TODO_:
   + Incorporation of a tests-suite
-  + Implement the sampler (upcomming mvMORPH 1.0.8) 
+  + Implement the sampler (upcomming mvMORPH) 
   + Code improvements
   + Extend the shift model to TS
   + Formula option for independent variables
 
-The current stable version of the mvMORPH package (1.0.6) is on the CRAN repository.
+The current stable version of the mvMORPH package (1.0.8) is on the CRAN repository.
 [https://cran.r-project.org/package=mvMORPH](https://cran.r-project.org/package=mvMORPH)
 
 ##**Package Installation**
 
-You can download the current beta version (1.0.7) binaries for Windows and Mac OS X from the [release page](https://github.com/JClavel/mvMORPH/releases)
+You can download the current beta version (1.0.8) binaries for Windows and Mac OS X from the [release page](https://github.com/JClavel/mvMORPH/releases)
 
 You can also install it directly from gitHub through devtools:
 
+```
 library(devtools)
 
 install_github("JClavel/mvMORPH", build_vignettes = TRUE)
+
+```
+
 
 (The installation may crash if your dependencies are not up to date. Note that you may also need to install Rtools to compile the C codes included in the package. For [Windows] (https://cran.r-project.org/bin/windows/Rtools/) and for [Mac] (http://r.research.att.com) (and [Tools] (https://r.research.att.com/tools/) )
 

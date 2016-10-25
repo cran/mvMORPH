@@ -34,6 +34,48 @@ fossil_ages <- c(55,46,43,38,35,32.5)
 timeseries <- max(fossil_ages)-fossil_ages
 timeseries
 
+## ---- comment=">", eval=FALSE--------------------------------------------
+#  set.seed(14)
+#  # Generating a random tree with 50 species
+#  tree<-pbtree(n=50)
+#  
+#  # Setting the regime states of tip species
+#  sta<-as.vector(c(rep("Forest",20),rep("Savannah",30))); names(sta)<-tree$tip.label
+#  
+#  # Making the simmap tree with mapped states
+#  tree<-make.simmap(tree, sta , model="ER", nsim=1)
+#  
+#  # Number of simulated datasets
+#  nsim<-1
+#  
+#  # Rates matrices for the "Forest" and the "Savannah" regimes
+#  # Note: use lists for multiple rates (matrices or scalars)
+#  sigma<-list(Forest=matrix(c(2,0.5,0.5,1),2), Savannah=matrix(c(5,3,3,4),2))
+#  
+#  # ancestral states for each traits
+#  theta<-c(0,0)
+#  
+#  # Simulate the "BMM" model
+#  simul_1<-mvSIM(tree, nsim=nsim, model="BMM", param=list(sigma=sigma, theta=theta))
+#  
+#  head(simul_1)
+
+## ---- comment=">", results="hide", eval=FALSE----------------------------
+#  # fit the BMM model on simulated data
+#  fit <- mvBM(tree, simul_1)
+#  
+#  # simulate 100 datasets from the fitted object
+#  simul_2 <- simulate(fit, tree=tree, nsim=100)
+#  
+#  # parametric bootstrap; e.g.:
+#  bootstrap <- lapply(simul_2, function(x) mvBM(tree, x, echo=F, diagnostic=F))
+#  
+#  # retrieve results; e.g. for the log-likelihood
+#  log_distribution <- sapply(bootstrap, logLik)
+#  
+#  hist(log_distribution, main="Log-likelihood distribution")
+#  abline(v=fit$LogLik, lty=2, lwd=5, col="red")
+
 ## ---- comment=">", results="hide"----------------------------------------
 set.seed(1)
 tree <- pbtree(n=50)
@@ -187,12 +229,12 @@ data<-mvSIM(tree, model="BM1", nsim=1, param=list(sigma=sigma, theta=theta))
 # Fit user-defined contrained model
 user_const <- matrix(c(1,4,4,4,2,5,4,5,3),3)
 fit1 <- mvBM(tree, data, model="BM1", method="pic"
-             , param=list(constraint=user_const), optimization="subplex")
+             , param=list(constraint=user_const))
 
 # only rates/variances are changing
 user_const <- matrix(c(1,3,3,3,2,3,3,3,2),3)
 fit2 <- mvBM(tree, data, model="BM1", param=list(constraint=user_const)
-             , method="pic", optimization="subplex")
+             , method="pic")
 
 ## ----comment=">"---------------------------------------------------------
 # Some covariances constrained to zero
@@ -201,7 +243,7 @@ user_const <- matrix(c(1,4,4,4,2,NA,4,NA,3),3)
 print(user_const)
 
 fit3 <- mvBM(tree, data, model="BM1", method="pic"
-             , param=list(constraint=user_const), optimization="subplex")
+             , param=list(constraint=user_const), optimization="Nelder-Mead")
 
 
 ## ---- comment=">", results='hide'----------------------------------------

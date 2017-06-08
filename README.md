@@ -8,16 +8,11 @@ The package is designed to handle ultrametric and non-ultrametric trees (*i.e.* 
 
 See the packages vignettes for details and examples: browseVignettes("mvMORPH").
 
-**mvMORPH 1.0.8**
+**mvMORPH 1.0.9**
 
-1. This is the version 1.0.8:
-  + Allows estimating the missing cases (NA)
-  + Allows estimating trends
-  + User defined constrained models and parameterizations  
-  + Return the log-likelihood function
-  + Simulating traits on package vignette
-  + Multivariate models for time-series (TS)
-  + Partial implementation of a tests-suite
+1. This is the version 1.0.9:
+  + Pruning algorithm to compute the determinant and matrix square root
+  + Some minor bugs corrections (see NEWS)
 
 2. _TODO_:
   + Incorporation of a tests-suite
@@ -25,15 +20,15 @@ See the packages vignettes for details and examples: browseVignettes("mvMORPH").
   + Code improvements
   + Extend the shift model to TS
   + Formula option for independent variables
+  + Improved mvOU model
+  + Threshold model for categorical data
 
 The current stable version of the mvMORPH package (1.0.8) is on the CRAN repository.
 [https://cran.r-project.org/package=mvMORPH](https://cran.r-project.org/package=mvMORPH)
 
-##**Package Installation**
+## **Package Installation**
 
-You can download the current beta version (1.0.8) binaries for Windows and Mac OS X from the [release page](https://github.com/JClavel/mvMORPH/releases)
-
-You can also install it directly from gitHub through devtools:
+You can install the package directly from gitHub through devtools:
 
 ```
 library(devtools)
@@ -45,10 +40,10 @@ install_github("JClavel/mvMORPH", build_vignettes = TRUE)
 
 (The installation may crash if your dependencies are not up to date. Note that you may also need to install Rtools to compile the C codes included in the package. For [Windows] (https://cran.r-project.org/bin/windows/Rtools/) and for [Mac] (http://r.research.att.com) (and [Tools] (https://r.research.att.com/tools/) )
 
-##**Report an issue**
+## **Report an issue**
 Any bugs encountered when using the package can be reported [here](https://github.com/JClavel/mvMORPH/issues)
 
-##**Package citation**
+## **Package citation**
 
 **Clavel, J., Escarguel, G., Merceron, G. 2015.** mvMORPH: an R package for fitting multivariate evolutionary models to morphometric data. Methods in Ecology and Evolution, 6(11):1311-1319.    DOI: 10.1111/2041-210X.12420
 

@@ -53,28 +53,28 @@ symPar <-function(par, decomp="cholesky", p=NULL, index.user=NULL, tol=0.1){
         },
         "spherical"={
             dim1<-p*(p-1)/2
-            sigma <- .Call("spherical", param=par[1:dim1], variance=par[(dim1+1):(dim1+p)], dim=as.integer(p))
+            sigma <- .Call("spherical", param=par[1:dim1], variance=par[(dim1+1):(dim1+p)], dim=as.integer(p), PACKAGE="mvMORPH")
         },
         "eigen"={
             dim1<-p*(p-1)/2
-            Q<-.Call("givens_ortho", Q=diag(p), angle=par[1:dim1], ndim=as.integer(p))
+            Q<-.Call("givens_ortho", Q=diag(p), angle=par[1:dim1], ndim=as.integer(p), PACKAGE="mvMORPH")
             T<-par[(dim1+1):(dim1+p)]
             invQ<-t(Q)
             sigma<-Q%*%diag(T)%*%invQ
         },
         "eigen+"={
             dim1<-p*(p-1)/2
-            Q<-.Call("givens_ortho", Q=diag(p), angle=par[1:dim1], ndim=as.integer(p))
+            Q<-.Call("givens_ortho", Q=diag(p), angle=par[1:dim1], ndim=as.integer(p), PACKAGE="mvMORPH")
             T<-exp(par[(dim1+1):(dim1+p)])
             invQ<-t(Q)
             sigma<-Q%*%diag(T)%*%invQ
         },
         "diagonal"={
-            d_par<-diag(par)
+            d_par<-diag(par,p)
             sigma<-d_par%*%t(d_par)
         },
         "equaldiagonal"={
-            d_par<-diag(par)
+            d_par<-diag(par,p)
             sigma<-d_par%*%t(d_par)
         },
         "equal"={
@@ -83,7 +83,7 @@ symPar <-function(par, decomp="cholesky", p=NULL, index.user=NULL, tol=0.1){
             # with the Adams parameterization I always obtain problems with more than 2 traits (even with the original code)
             if(p>2){
                  dim1<-p*(p-1)/2
-                 sigma <- .Call("spherical", param=par[1:dim1], variance=rep(par[(dim1+1)],p), dim=as.integer(p))
+                 sigma <- .Call("spherical", param=par[1:dim1], variance=rep(par[(dim1+1)],p), dim=as.integer(p), PACKAGE="mvMORPH")
             }
             
         },
@@ -288,25 +288,25 @@ matrixParam<-function(x,p,matrix="cholesky",index.user=NULL,tol=0.000001){
     switch(matrix,
     "svd"={ # svd decomposition
         dim1<-p*(p-1)/2
-        U<-.Call("givens_ortho", Q=diag(p), angle=as.numeric(x[1:dim1]), ndim=as.integer(p))
+        U<-.Call("givens_ortho", Q=diag(p), angle=as.numeric(x[1:dim1]), ndim=as.integer(p), PACKAGE="mvMORPH")
         T<-x[(dim1+1):(dim1+p)]+tol
-        V<-.Call("givens_ortho", Q=diag(p), angle=as.numeric(x[(dim1+p+1):(p*p)]), ndim=as.integer(p))
+        V<-.Call("givens_ortho", Q=diag(p), angle=as.numeric(x[(dim1+p+1):(p*p)]), ndim=as.integer(p), PACKAGE="mvMORPH")
         A<-U%*%diag(T)%*%t(V)
         eigval<-eigen(A)
         Adecomp<-list(vectors=eigval$vectors, values=eigval$values, A=A, invectors=solve(eigval$vectors))
     },
     "svd+"={ # svd decomposition
         dim1<-p*(p-1)/2
-        U<-.Call("givens_ortho", Q=diag(p), angle=as.numeric(x[1:dim1]), ndim=as.integer(p))
+        U<-.Call("givens_ortho", Q=diag(p), angle=as.numeric(x[1:dim1]), ndim=as.integer(p), PACKAGE="mvMORPH")
         T<-exp(x[(dim1+1):(dim1+p)])
-        V<-.Call("givens_ortho", Q=diag(p), angle=as.numeric(x[(dim1+p+1):(p*p)]), ndim=as.integer(p))
+        V<-.Call("givens_ortho", Q=diag(p), angle=as.numeric(x[(dim1+p+1):(p*p)]), ndim=as.integer(p), PACKAGE="mvMORPH")
         A<-U%*%diag(T)%*%t(V)
         eigval<-eigen(A)
         Adecomp<-list(vectors=eigval$vectors, values=eigval$values, A=A, invectors=solve(eigval$vectors))
     },
     "eigen"={ # eigen decomposition with positive eigenvalues
         dim1<-p*(p-1)/2
-        Q<-.Call("givens_ortho", Q=diag(p), angle=x[1:dim1], ndim=as.integer(p))
+        Q<-.Call("givens_ortho", Q=diag(p), angle=x[1:dim1], ndim=as.integer(p), PACKAGE="mvMORPH")
         T<-x[(dim1+1):(dim1+p)]
         invQ<-t(Q)
         A<-Q%*%diag(T)%*%invQ
@@ -314,7 +314,7 @@ matrixParam<-function(x,p,matrix="cholesky",index.user=NULL,tol=0.000001){
     },
     "eigen+"={ # eigen decomposition with positive eigenvalues
         dim1<-p*(p-1)/2
-        Q<-.Call("givens_ortho", Q=diag(p), angle=x[1:dim1], ndim=as.integer(p))
+        Q<-.Call("givens_ortho", Q=diag(p), angle=x[1:dim1], ndim=as.integer(p), PACKAGE="mvMORPH")
         T<-exp(x[(dim1+1):(dim1+p)])
         invQ<-t(Q)
         A<-Q%*%diag(T)%*%invQ
@@ -322,7 +322,7 @@ matrixParam<-function(x,p,matrix="cholesky",index.user=NULL,tol=0.000001){
     },
     "qr"={ # QR decomposition (R diagonal values are forced to be positive)
         dim1<-p*(p-1)/2
-        Q<-.Call("givens_ortho", Q=diag(p), angle=x[1:dim1], ndim=as.integer(p))
+        Q<-.Call("givens_ortho", Q=diag(p), angle=x[1:dim1], ndim=as.integer(p), PACKAGE="mvMORPH")
         R<-diag(x[(dim1+1):(dim1+p)],p)
         R[upper.tri(R)]<-x[(dim1+p+1):(p*p)]
         A<-Q%*%R
@@ -331,7 +331,7 @@ matrixParam<-function(x,p,matrix="cholesky",index.user=NULL,tol=0.000001){
     },
     "qr+"={ # QR decomposition (R diagonal values are forced to be positive)
         dim1<-p*(p-1)/2
-        Q<-.Call("givens_ortho", Q=diag(p), angle=x[1:dim1], ndim=as.integer(p))
+        Q<-.Call("givens_ortho", Q=diag(p), angle=x[1:dim1], ndim=as.integer(p), PACKAGE="mvMORPH")
         R<-diag(exp(x[(dim1+1):(dim1+p)]),p)
         R[upper.tri(R)]<-x[(dim1+p+1):(p*p)]
         A<-Q%*%R
@@ -340,7 +340,7 @@ matrixParam<-function(x,p,matrix="cholesky",index.user=NULL,tol=0.000001){
     },
     "spherical"={ # Spherical parameterization
         dim1<-p*(p-1)/2
-        A <- .Call("spherical", param=x[1:dim1], variance=x[(dim1+1):(dim1+p)], dim=as.integer(p))
+        A <- .Call("spherical", param=x[1:dim1], variance=x[(dim1+1):(dim1+p)], dim=as.integer(p), PACKAGE="mvMORPH")
         eigval<-eigen(A)
         Adecomp<-list(vectors=eigval$vectors, values=eigval$values, A=A, invectors=solve(eigval$vectors))
     },
@@ -353,7 +353,7 @@ matrixParam<-function(x,p,matrix="cholesky",index.user=NULL,tol=0.000001){
     },
     "schur"={ # Schur decomposition
         dim1<-p*(p-1)/2
-        Q<-.Call("givens_ortho", Q=diag(p), angle=x[1:dim1], ndim=as.integer(p))
+        Q<-.Call("givens_ortho", Q=diag(p), angle=x[1:dim1], ndim=as.integer(p), PACKAGE="mvMORPH")
         T<-diag(x[(dim1+1):(dim1+p)],p)
         T[upper.tri(T)]<-x[(dim1+p+1):(p*p)]
         A<-Q%*%T%*%t(Q)
@@ -362,7 +362,7 @@ matrixParam<-function(x,p,matrix="cholesky",index.user=NULL,tol=0.000001){
     },
     "schur+"={ # Schur decomposition with positive eigenvalues
         dim1<-p*(p-1)/2
-        Q<-.Call("givens_ortho", Q=diag(p), angle=x[1:dim1], ndim=as.integer(p))
+        Q<-.Call("givens_ortho", Q=diag(p), angle=x[1:dim1], ndim=as.integer(p), PACKAGE="mvMORPH")
         T<-diag(exp(x[(dim1+1):(dim1+p)]),p) # exp to force positive eigenvalues
         T[upper.tri(T)]<-x[(dim1+p+1):(p*p)]
         A<-Q%*%T%*%t(Q)
@@ -390,7 +390,7 @@ matrixParam<-function(x,p,matrix="cholesky",index.user=NULL,tol=0.000001){
         # with the Adams parameterization I always obtain problems with more than 2 traits (even with the original code)
         if(p>2){
             dim1<-p*(p-1)/2
-            sigma <- .Call("spherical", param=x[1:dim1], variance=rep(x[(dim1+1)],p), dim=as.integer(p))
+            sigma <- .Call("spherical", param=x[1:dim1], variance=rep(x[(dim1+1)],p), dim=as.integer(p), PACKAGE="mvMORPH")
         }
     },
     "lower"={
@@ -460,8 +460,15 @@ multD<-function(tree,k,nbtip,smean=TRUE){
           stop("The specified tree must be in SIMMAP format with different regimes")
         }
         namestip<-sapply(1:nbtip,function(i){
-        ind<-which(tree$edge[,2]==i);
-        names(tree$maps[[ind]][length(tree$maps[[ind]])])})
+            if(i==Ntip(tree)+1){
+                ind <- which(tree$edge[,1]==i)
+                names(tree$maps[[ind[1]]][1]) # we take only one of the root?
+            }else{
+                ind<-which(tree$edge[,2]==i);
+                names(tree$maps[[ind]][length(tree$maps[[ind]])])
+            }
+        })
+
         group<-as.numeric(as.factor(namestip))
         
         if(k==1){
@@ -553,7 +560,7 @@ varBM<-function(tree,data,n,k){
     rate<-rep(0,k)
     tree<-reorder.phylo(tree,"postorder")
     value<-list(tree$edge.length)
-    res<-.Call("PIC_gen", x=as.vector(as.matrix(data)), n=as.integer(k), Nnode=as.integer(tree$Nnode), nsp=as.integer(n), edge1=as.integer(tree$edge[,1]), edge2=as.integer(tree$edge[,2]), edgelength=value, times=1, rate=rate, Tmax=1, Model=as.integer(13), mu=1, sigma=1)
+    res<-.Call("PIC_gen", x=as.vector(as.matrix(data)), n=as.integer(k), Nnode=as.integer(tree$Nnode), nsp=as.integer(n), edge1=as.integer(tree$edge[,1]), edge2=as.integer(tree$edge[,2]), edgelength=value, times=1, rate=rate, Tmax=1, Model=as.integer(13), mu=1, sigma=1, PACKAGE="mvMORPH")
     return(res[[2]])
 }
 
@@ -569,15 +576,17 @@ user_guess <- function(user_const, sigma){
 }
 
 # Generate random multivariate distributions
-rmvnorm_simul<-function(n=1, mean, var){
+rmvnorm_simul<-function(n=1, mean, var, method="cholesky"){
     
     p<-length(mean)
     if (!all(dim(var)==c(p,p)))
     stop("length of ",sQuote("mean")," must equal the dimension of the square matrix ",sQuote("var"))
     
     # try with fast cholesky
-     chol_factor <- try(t(chol(var)), silent = TRUE)
-    # else use svd
+    if(method=="cholesky"){
+        chol_factor <- try(t(chol(var)), silent = TRUE)
+        
+      # else use svd
       if(inherits(chol_factor ,'try-error')){
         warning("An error occured with the Cholesky decomposition, the \"svd\" method is used instead")
         s. <- svd(var)
@@ -587,11 +596,30 @@ rmvnorm_simul<-function(n=1, mean, var){
         R <- t(s.$v %*% (t(s.$u) * sqrt(s.$d)))
         X <- matrix(mean,p,n) + t(matrix(rnorm(n * p), nrow=n )%*%  R)
 
-     } else {
+      } else {
         X <- matrix(mean,p,n) + chol_factor%*%matrix(rnorm(p*n),p,n)
+      }
+      
+    }else{
+        s. <- svd(var)
+        if (!all(s.$d >= -sqrt(.Machine$double.eps) * abs(s.$d[1]))){
+            warning("The covariance matrix is numerically not positive definite")
+        }
+        R <- t(s.$v %*% (t(s.$u) * sqrt(s.$d)))
+        X <- matrix(mean,p,n) + t(matrix(rnorm(n * p), nrow=n )%*%  R)
     }
     
     return(X)
+}
+
+# Compute the variance-covariance matrix of tips as well as internal nodes
+vcvPhyloInternal <- function(tree){
+    nbtip <- Ntip(tree)
+    dis <- dist.nodes(tree)
+    MRCA <- mrca(tree, full = TRUE)
+    M <- dis[as.character(nbtip + 1), MRCA]
+    dim(M) <- rep(sqrt(length(M)), 2)
+    return(M)
 }
 
 # Generate a multi-phylo list for SIMMAP trees
@@ -606,21 +634,150 @@ vcvSplit<-function(tree, internal=FALSE){
         multi.tre[[i]]<-tree
         multi.tre[[i]]$edge.length<-tree$mapped.edge[,i]
         multi.tre[[i]]$state<-colnames(tree$mapped.edge)[i]
-        # hack from Liam Revell (change to multiC later)
-        C[[i]]<-if(internal) vcvPhylo(multi.tre[[i]],internal=TRUE) else vcv.phylo(multi.tre[[i]])
+        # hack from Liam Revell
+        C[[i]]<-if(internal) vcvPhyloInternal(multi.tre[[i]]) else vcv.phylo(multi.tre[[i]])
     }
 return(C)
 }
 
 # Get the indice of tip species on ancestral vcv
 indiceTip <- function(tree, p){
-    totsp <- Ntip(tree)+(Nnode(tree)-1) # retrieve the root state
+    totsp <- Ntip(tree)+Nnode(tree) # retrieve the root state
     init  <- res <- (1:Ntip(tree))
+    if(p==1) return(init)
     for(i in 1:(p-1)){
         init<-init+totsp
         res <- c(res,init)
     }
     return(res)
+}
+
+# Return the path from the root to a node
+pathToNode <- function(tree, node, root=NULL){
+    ntip <- Ntip(tree)
+    if(is.null(root)) root <- ntip+1 # ?? always true?
+    if(node==root) return(node)
+    vector_of_nodes = NULL # Memory allocation may be better...
+    increment = 1
+    ind = node
+    repeat{
+        ind <- tree$edge[which(tree$edge[,2]==ind),1]
+        vector_of_nodes[increment] = ind
+        increment = increment+1
+        if(ind==root) break
+    }
+    return(c(rev(vector_of_nodes),node))
+}
+
+
+# Prepar the epochs and regime lists to compute the weight-matrix of the OU process
+prepWOU <- function(tree, n, p, k, model="OUM", root=FALSE){
+    
+    # Compute root to tip nodes paths
+    ntip = Ntip(tree)
+    nnode = tree$Nnode
+    root2tip <- .Call("seq_root2tipM", tree$edge, ntip, nnode, PACKAGE="mvMORPH")
+
+    # parameters
+    root_node = ntip+1
+    ntot = ntip+nnode
+    # hack
+    if(n>ntip){
+        for(i in root_node:ntot){
+            root2tip[[i]] <- pathToNode(tree,i)
+        }
+    }
+    
+    if(model=="OUM"){
+        
+        # lineages maps
+        valLineage<-sapply(1:n,function(z){
+            if(z!=root_node){ # ntip+1 is assumed to be the root
+                rev(unlist(
+                sapply(1:(length(root2tip[[z]])-1),function(x){vec<-root2tip[[z]][x:(x+1)]; val<-which(tree$edge[,1]==vec[1] & tree$edge[,2]==vec[2]); tree$maps[[val]]<-tree$maps[[val]]},simplify=FALSE)))
+                
+            }else{
+                val <- max(nodeHeights(tree))
+                ind <- which(tree$edge[,1]==z)
+                names(val) <- names(tree$maps[[ind[1]]][1])
+                val
+            }
+        },simplify=FALSE)
+        
+        
+        # set factors
+        if(root==FALSE | root=="stationary"){
+            facInd<-factor(colnames(tree$mapped.edge))
+        }else if(root==TRUE){
+            facInd<-factor(c("_root_state",colnames(tree$mapped.edge)))
+        }
+        
+        # indice factors
+        indice<-lapply(1:n,function(z){
+            if(z!=root_node){
+                rev(unlist(lapply(1:(length(root2tip[[z]])-1),function(x){vec<-root2tip[[z]][x:(x+1)]; val<-which(tree$edge[,1]==vec[1] & tree$edge[,2]==vec[2]); factor(names(tree$maps[[val]]),levels=facInd)})))
+            }else{
+              if(root==FALSE | root=="stationary"){
+                ind <- which(tree$edge[,1]==root_node)
+                factor(names(tree$maps[[ind[1]]][1]), levels=facInd)
+              }else{
+                factor("_root_state", levels=facInd)
+              }
+            }
+        })
+        
+    }else{ # model is "OU1"
+        
+        # change the number of regimes to 1
+        k <- 1
+        
+        # lineage maps
+        valLineage<-sapply(1:n,function(z){
+            if(z!=ntip+1){
+                rev(unlist(
+                sapply(1:(length(root2tip[[z]])-1),function(x){vec<-root2tip[[z]][x:(x+1)]; val<-which(tree$edge[,1]==vec[1] & tree$edge[,2]==vec[2]); tree$edge.length[val]<-tree$edge.length[val]},simplify=FALSE)))
+            }else{
+                max(nodeHeights(tree))
+            }
+        } ,simplify=FALSE)
+        
+        if(root==TRUE){
+            k<-k+1
+            facInd<-factor(c("_root_state","theta_1"))
+            indice<-lapply(1:n,function(z){ 
+              if(z!=root_node){
+                as.factor(rep(facInd[facInd=="theta_1"],length(valLineage[[z]])))
+              }else{
+                factor("_root_state", levels=facInd)
+              }
+            })
+        }else{
+            indice<-lapply(1:n,function(z){ as.factor(rep(1,length(valLineage[[z]])))})
+        }
+        
+    }
+    
+    # Liste avec dummy matrix
+    if(root==FALSE){
+        indiceA<-indiceReg(n, indice, facInd, FALSE)
+        mod_stand<-0 # the root is not provided nor assumed to be one of the selected regimes, so we rowstandardize (could be optional)
+    }else if(root==TRUE){
+        indiceA<-indiceReg(n, indice, facInd, TRUE)
+        mod_stand<-0
+    }else if(root=="stationary"){
+        indiceA<-indiceReg(n, indice, facInd, FALSE)
+        mod_stand<-1
+    }
+    
+    ## Return the epochs and regime lists
+    
+    # regime lists
+    listReg<-sapply(1:n,function(x){sapply(1:p,function(db){regimeList(indiceA[[x]],k=k,root)},simplify=FALSE)},simplify=FALSE)
+    # mapped epochs
+    epochs<-sapply(1:n,function(x){lineage<-as.numeric(c(cumsum(valLineage[[x]])[length(valLineage[[x]])],(cumsum(valLineage[[x]])[length(valLineage[[x]])]-cumsum(valLineage[[x]])))); lineage[which(abs(lineage)<1e-15)]<-0; lineage },simplify=FALSE)
+    
+    results <- list(epochs=epochs, listReg=listReg, mod_stand=mod_stand)
+    return(results)
 }
 
 # Generate box constraints for the likelihood search
@@ -690,11 +847,11 @@ switch(method,
    
     
     if(theta_mle==TRUE){
-       cholres<-.Call("Chol_RPF",V,D,data,as.integer(sizeD),as.integer(size),mserr=error,ismserr=as.integer(ms))
+       cholres<-.Call("Chol_RPF",V,D,data,as.integer(sizeD),as.integer(size),mserr=error,ismserr=as.integer(ms), PACKAGE="mvMORPH")
        theta<-pseudoinverse(cholres[[3]])%*%cholres[[4]]
     }else{
         # We avoid the transformation of D and data by the Cholesky factor
-       cholres<-.Call("Chol_RPF_only",V,as.integer(size),mserr=error,ismserr=as.integer(ms))
+       cholres<-.Call("Chol_RPF_only",V,as.integer(size),mserr=error,ismserr=as.integer(ms), PACKAGE="mvMORPH")
     }
         det<-cholres[[2]]
         
@@ -703,7 +860,7 @@ switch(method,
     }else{
         residus=(D%*%theta+trend)-data
     }
-    quad<-.Call("Chol_RPF_quadprod", cholres[[1]], residus, as.integer(size))
+    quad<-.Call("Chol_RPF_quadprod", cholres[[1]], residus, as.integer(size), PACKAGE="mvMORPH")
     logl<--.5*quad-.5*as.numeric(det)-.5*(size*log(2*pi))
     results<-list(logl=logl,anc=theta)
 },
@@ -714,10 +871,10 @@ switch(method,
     
 
    if(theta_mle==TRUE){
-       cholres<-.Call("Chol_RPF_univ",V,D,data,as.integer(sizeD),as.integer(size),mserr=error,ismserr=as.integer(ms))
+       cholres<-.Call("Chol_RPF_univ",V,D,data,as.integer(sizeD),as.integer(size),mserr=error,ismserr=as.integer(ms), PACKAGE="mvMORPH")
        theta<-pseudoinverse(cholres[[3]])%*%cholres[[4]]
    }else{
-       cholres<-.Call("Chol_RPF_univ_only",V,as.integer(size),mserr=error,ismserr=as.integer(ms))
+       cholres<-.Call("Chol_RPF_univ_only",V,as.integer(size),mserr=error,ismserr=as.integer(ms), PACKAGE="mvMORPH")
    }
  
     det<-cholres[[2]]
@@ -728,7 +885,7 @@ switch(method,
         residus=(D%*%theta+trend)-data
     }
     
-    quad<-.Call("Chol_RPF_quadprod_column", cholres[[1]], residus, as.integer(size))
+    quad<-.Call("Chol_RPF_quadprod_column", cholres[[1]], residus, as.integer(size), PACKAGE="mvMORPH")
     logl<--.5*quad-.5*as.numeric(det)-.5*(size*log(2*pi))
     results<-list(logl=logl,anc=theta)
 },

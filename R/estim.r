@@ -62,10 +62,10 @@ if(any(class(object)=="mvmorph")){
         if(any(sp_names==rownames(data))){data<-data[sp_names,]}
         
         if(k!=1){
-            C <- vcvSplit(tree, internal=TRUE) # change to multiC later?
+            C <- vcvSplit(tree, internal=TRUE)
             n <- ncol(C[[1]])
         }else{
-            C <- vcvPhylo(tree)
+            C <- vcvPhyloInternal(tree)
             n <- ncol(C)
         }
 
@@ -216,6 +216,10 @@ switch(model,
 "BM1"={
     # Compute the design matrix
     W<-multD(tree,p,n,smean=object$param$smean)
+    
+    # Check if there where multiple vcv (compatibility with smean=FALSE)
+    if(is.list(C)) C <- Reduce("+",C)
+    
     V<-.Call("kronecker_mvmorph", R=sigma, C=C, Rrows=as.integer(p),  Crows=as.integer(n))
     # Add measurment error?
     if(is.null(error)==FALSE){
@@ -250,10 +254,11 @@ switch(model,
     }
 },
 "OU1"={
-    param_ou<-mv.Precalc(tree,nb.traits=p,param=list(model="OU1", root=root))
+    param_ou<-prepWOU(tree, n=n, p=p, k=k, model="OU1", root=root) #mv.Precalc(tree,nb.traits=p,param=list(model="OU1", root=root))
     epochs<-param_ou$epochs
     listReg<-param_ou$listReg
-    bt<-param_ou$C1
+    if (is.list(C)) C <- Reduce("+", C)
+    bt<-C
     eig<-eigen(alpha)
     svec<-solve(eig$vectors)
     if(object$param$vcv=="fixedRoot" | object$param$vcv=="univarpfFixed" | object$param$vcv=="univarFixed" | object$param$vcv=="sparse"){
@@ -273,16 +278,17 @@ switch(model,
     }
 },
 "OUM"={
-    param_ou<-mv.Precalc(tree,nb.traits=p,param=list(model="OUM", root=root))
+    param_ou<-prepWOU(tree, n=n, p=p, k=k, model="OUM", root=root) #mv.Precalc(tree,nb.traits=p,param=list(model="OUM", root=root))
     epochs<-param_ou$epochs
     listReg<-param_ou$listReg
-    bt<-param_ou$C1
+    if (is.list(C)) C <- Reduce("+", C)
+    bt<-C
     eig<-eigen(alpha)
     svec<-solve(eig$vectors)
     if(object$param$vcv=="fixedRoot"| object$param$vcv=="univarpfFixed" | object$param$vcv=="univarFixed" | object$param$vcv=="sparse"){
         V<-.Call("mvmorph_covar_mat", as.integer(n), bt=bt, lambda=eig$values, S=eig$vectors, sigmasq=sigma, S1=svec)
     }else{
-        V<-.Call("simmap_covar", as.integer(n), bt=bt, lambda=eig$values, S=eig$vectors, sigmasq=sigma)
+        V<-.Call("simmap_covar", as.integer(n), bt=bt, lambda=eig$values, S=eig$vectors, S1=svec, sigmasq=sigma)
     }
     W<-.Call("mvmorph_weights",nterm=as.integer(n), epochs=epochs,lambda=eig$values,S=eig$vectors,S1=svec,beta=listReg,root=as.integer(mod_stand))
     # Add measurment error?
@@ -426,8 +432,8 @@ data<-as.numeric(as.matrix(data))
 
 if(asr==TRUE){
     ## Parameters estimates
-    anc <- as.numeric(W[Indice_EXT,]%*%as.numeric(mu))
-    anc2 <- as.numeric(W[-Indice_EXT,]%*%as.numeric(mu))
+    anc <- as.numeric(as.matrix(W[Indice_EXT,])%*%as.numeric(mu))
+    anc2 <- as.numeric(as.matrix(W[-Indice_EXT,])%*%as.numeric(mu))
     
     # extend Cunningham et al. 1998 to multivariate
     # Models included in the objects
@@ -476,12 +482,12 @@ if(asr==TRUE){
     ## Names the results
     results_matrix<-matrix(data_estim, ncol=p)
     colnames(results_matrix)<-traits_names
-    rownames(results_matrix)<-ntip+2:Nnode(tree)
+    rownames(results_matrix)<-ntip+1:Nnode(tree)
     
     ## Names the results of variance and sd
     results_var<-matrix(data_var, ncol=p)
     results_se<-matrix(data_se, ncol=p)
-    rownames(results_var)<-rownames(results_se)<-ntip+2:Nnode(tree)
+    rownames(results_var)<-rownames(results_se)<-ntip+1:Nnode(tree)
     colnames(results_var)<-colnames(results_se)<-traits_names
   
 }else{

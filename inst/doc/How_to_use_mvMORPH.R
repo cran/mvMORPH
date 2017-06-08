@@ -229,12 +229,12 @@ data<-mvSIM(tree, model="BM1", nsim=1, param=list(sigma=sigma, theta=theta))
 # Fit user-defined contrained model
 user_const <- matrix(c(1,4,4,4,2,5,4,5,3),3)
 fit1 <- mvBM(tree, data, model="BM1", method="pic"
-             , param=list(constraint=user_const))
+             , param=list(constraint=user_const), optimization="subplex")
 
 # only rates/variances are changing
 user_const <- matrix(c(1,3,3,3,2,3,3,3,2),3)
 fit2 <- mvBM(tree, data, model="BM1", param=list(constraint=user_const)
-             , method="pic")
+             , method="pic", optimization="subplex")
 
 ## ----comment=">"---------------------------------------------------------
 # Some covariances constrained to zero
@@ -243,7 +243,7 @@ user_const <- matrix(c(1,4,4,4,2,NA,4,NA,3),3)
 print(user_const)
 
 fit3 <- mvBM(tree, data, model="BM1", method="pic"
-             , param=list(constraint=user_const), optimization="Nelder-Mead")
+             , param=list(constraint=user_const), optimization="subplex")
 
 
 ## ---- comment=">", results='hide'----------------------------------------

@@ -76,6 +76,31 @@ timeseries
 #  hist(log_distribution, main="Log-likelihood distribution")
 #  abline(v=fit$LogLik, lty=2, lwd=5, col="red")
 
+## ----comment=">"---------------------------------------------------------
+set.seed(1)
+n <- 32 # number of species
+p <- 50 # number of traits (p>n)
+
+tree <- pbtree(n=n, scale=1) # phylogenetic tree
+R <- crossprod(matrix(rnorm(p*p), ncol=p)) # a random symmetric matrix (covariance)
+# simulate a BM dataset
+Y <- mvSIM(tree, model="BM1", nsim=1, param=list(sigma=R, theta=rep(0,p)))
+data=list(Y=Y)
+
+# High dimensional model fit
+fit1 <- mvgls(Y~1, data=data, tree, model="BM", penalty="RidgeArch")
+fit2 <- mvgls(Y~1, data=data, tree, model="OU", penalty="RidgeArch")
+fit3 <- mvgls(Y~1, data=data, tree, model="EB", penalty="RidgeArch")
+
+GIC(fit1); GIC(fit2); GIC(fit3) # BM have the lowest GIC value (see # Model comparison)
+
+# We can also use the model fit to perform a phylogenetic PCA
+# mvgls.pca(fit1)
+
+# Regression model with Pagel's lambda estimation
+data=list(Y=Y, X=rnorm(n))
+mvgls(Y~X, data=data, tree, model="lambda", penalty="RidgeArch")
+
 ## ---- comment=">", results="hide"----------------------------------------
 set.seed(1)
 tree <- pbtree(n=50)
@@ -213,7 +238,7 @@ matplot(data, type="o", pch=1, xlab="Time (relative)")
 fit1 <- mvRWTS(timeseries , data, error)
 fit2 <- mvRWTS(timeseries , data, error, param=list(trend=c(1,1)))
 
-## ----comment=">"---------------------------------------------------------
+## ---- comment=">"--------------------------------------------------------
 LRT(fit2,fit1)
 
 ## ---- results="hide", comment=">", message=FALSE-------------------------
@@ -326,7 +351,7 @@ fit_3 <- mvOU(tree, trait, model="OU1", param=list(vcv="randomRoot"))
 fit_4 <- mvOU(tree, trait, model="OU1", param=list(vcv="fixedRoot"))
 
 
-## ----comment=">"---------------------------------------------------------
+## ---- comment=">"--------------------------------------------------------
 # compare the log-likelihood
 abs(logLik(fit_1))-abs(logLik(fit_2)) # large half-life
 abs(logLik(fit_3))-abs(logLik(fit_4)) # small half-life
@@ -391,7 +416,7 @@ data[25,1]<-NA
 # Fit of model 1
 fit_1<-mvBM(tree,data,model="BM1")
 
-## ----comment=">"---------------------------------------------------------
+## ---- comment=">"--------------------------------------------------------
 # Estimate the missing cases
 imp<-estim(tree, data, fit_1, asr=FALSE)
 

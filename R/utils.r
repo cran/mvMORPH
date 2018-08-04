@@ -26,9 +26,9 @@ aicw <- function(x,...){
         
                 models_names <- sapply(1:length(x),function(i){
                     if(!is.null(x[[i]]$param[["constraint"]])){
-                        paste(x[[i]]$param$model,x[[i]]$param$constraint,i)
+                        paste(x[[i]]$param$model[length(x[[i]]$param$model)],x[[i]]$param$constraint,i)
                     }else{
-                        paste(x[[i]]$param$model,i)}
+                        paste(x[[i]]$param$model[length(x[[i]]$param$model)],i)}
                 })
         }else{
         aic_model <- unlist(x)
@@ -38,7 +38,11 @@ aicw <- function(x,...){
         row.names(aics) <- as.character(models_names)
         
     }else{
-        models_names <- 1:length(x)
+        if(is.null(names(x))){
+            models_names <- 1:length(x)
+        }else{
+            models_names <- names(x)
+        }
         aics <- data.frame(models=models_names, AIC=x, diff=x)
         row.names(aics) <- as.character(models_names)
     }

@@ -424,6 +424,9 @@ if(!is.null(error)){
     error[is.na(error)] <- 0
 }
 
+# Select the method for drawing values from the multivariate normal distribution; default is "cholesky"
+if(is.null(param[["method"]])){ methodSim <- "cholesky" }else{ methodSim <- param$method }
+
 # Compute the VCV and Design matrix for each models
 
 switch(model,
@@ -431,7 +434,7 @@ switch(model,
     # Compute the design matrix
     param$smean<-TRUE
     W<-multD(tree,p,n,smean=param$smean)
-    V<-.Call("kronecker_mvmorph", R=sigma, C=C, Rrows=as.integer(p),  Crows=as.integer(n), PACKAGE="mvMORPH")
+    V<-.Call(kronecker_mvmorph, R=sigma, C=C, Rrows=as.integer(p),  Crows=as.integer(n))
     # Add measurment error?
     if(is.null(error)==FALSE){
         diag(V)<-diag(V)+error
@@ -447,8 +450,34 @@ switch(model,
 "BM1"={
     # Compute the design matrix
     if(is.null(param[["smean"]])==TRUE){ param$smean<-TRUE }
+    
+    # If there is no trends/errors/multiple means. We can simplify the computation of BM1 (for large dimensions...)
+    if(istrend==FALSE & is.null(error) & p!=1 & param$smean){
+        
+        Croot <- chol(C); # the cholesky factor to correlate the data
+        W<-matrix(1,nrow=n,ncol=1) # multiple mean? To be improved later
+        
+        if(nsim==1 & p!=1){
+            X <- rmvnorm_simul(n=n, mean=rep(0,p), var=sigma, method=methodSim)
+            deviates <- t(X%*%Croot)
+            traits <- matrix(W%*%as.numeric(mu),ncol=p) + deviates
+            rownames(traits)<-names_rows
+            colnames(traits)<-names_traits
+             return(traits) # if we return we exit the function.
+        }else if(nsim>1 & p!=1){
+            traits<-lapply(1:nsim,function(x){
+                X <- rmvnorm_simul(n=n, mean=rep(0,p), var=sigma, method=methodSim)
+                deviates<-t(X%*%Croot);
+                traits <- matrix(W%*%as.numeric(mu),ncol=p) + deviates;
+                rownames(traits)<-names_rows; colnames(traits)<-names_traits;
+                traits})
+             return(traits) # if we return we exit the function.
+        }
+    
+    } # else we use the full kronecker matrix...
+    
     W<-multD(tree,p,n,smean=param$smean)
-    V<-.Call("kronecker_mvmorph", R=sigma, C=C, Rrows=as.integer(p),  Crows=as.integer(n), PACKAGE="mvMORPH")
+    V<-.Call(kronecker_mvmorph, R=sigma, C=C, Rrows=as.integer(p),  Crows=as.integer(n))
     # Add measurment error?
     if(is.null(error)==FALSE){
         diag(V)<-diag(V)+error
@@ -463,7 +492,7 @@ switch(model,
 "BMM"={
     if(is.null(param[["smean"]])==TRUE){ param$smean<-TRUE }
     W<-multD(tree,p,n,smean=param$smean)
-    V<-.Call("kroneckerSum", R=sigma, C=C, Rrows=as.integer(p),  Crows=as.integer(n), dimlist=as.integer(k), PACKAGE="mvMORPH") # Add measurment error?
+    V<-.Call(kroneckerSum, R=sigma, C=C, Rrows=as.integer(p),  Crows=as.integer(n), dimlist=as.integer(k)) # Add measurment error?
     if(is.null(error)==FALSE){
         diag(V)<-diag(V)+error
     }
@@ -484,13 +513,13 @@ switch(model,
     }
     matdiag<-diag(p)
     
-    if(vcv=="fixedRoot" | vcv=="univarpfFixed" | vcv=="univarFixed"){
-        V<-.Call("mvmorph_covar_mat", as.integer(n), bt=C, lambda=eig$values, S=eig$vectors, sigmasq=sigma, S1=svec, PACKAGE="mvMORPH")
+    if(vcv=="fixedRoot" | vcv=="univarpfFixed" | vcv=="univarFixed" | vcv=="sparse"){
+        V<-.Call(mvmorph_covar_mat, as.integer(n), bt=C, lambda=eig$values, S=eig$vectors, sigmasq=sigma, S1=svec)
     }else if(vcv=="randomRoot" | vcv=="univarpfRandom" | vcv=="univarRandom"){
-        V<-.Call("simmap_covar", as.integer(n), bt=C, lambda=eig$values, S=eig$vectors, S1=svec, sigmasq=sigma, PACKAGE="mvMORPH")
+        V<-.Call(simmap_covar, as.integer(n), bt=C, lambda=eig$values, S=eig$vectors, S1=svec, sigmasq=sigma)
     }
     if(root==TRUE){
-    W<-.Call("Weight_matrix", S1=svec, S=eig$vectors, lambda=eig$values, time=as.numeric(tree), matdiag=as.numeric(matdiag), PACKAGE="mvMORPH")
+    W<-.Call(Weight_matrix, S1=svec, S=eig$vectors, lambda=eig$values, time=as.numeric(tree), matdiag=as.numeric(matdiag))
     }else{
     W<-multD(NULL,p,n,smean=TRUE)
     }
@@ -513,13 +542,13 @@ switch(model,
         svec<- pseudoinverse(eig$vectors)
     }
     
-    if(vcv=="fixedRoot" | vcv=="univarpfFixed" | vcv=="univarFixed"){
-        V<-.Call("mvmorph_covar_mat", as.integer(n), bt=bt, lambda=eig$values, S=eig$vectors, sigmasq=sigma, S1=svec, PACKAGE="mvMORPH")
+    if(vcv=="fixedRoot" | vcv=="univarpfFixed" | vcv=="univarFixed" | vcv=="sparse"){
+        V<-.Call(mvmorph_covar_mat, as.integer(n), bt=bt, lambda=eig$values, S=eig$vectors, sigmasq=sigma, S1=svec)
     }else if(vcv=="randomRoot" | vcv=="univarpfRandom" | vcv=="univarRandom"){
-        V<-.Call("simmap_covar", as.integer(n), bt=bt, lambda=eig$values, S=eig$vectors, S1=svec, sigmasq=sigma, PACKAGE="mvMORPH")
+        V<-.Call(simmap_covar, as.integer(n), bt=bt, lambda=eig$values, S=eig$vectors, S1=svec, sigmasq=sigma)
     }
     
-    W<-.Call("mvmorph_weights",nterm=as.integer(n), epochs=epochs,lambda=eig$values,S=eig$vectors,S1=svec,beta=listReg,root=as.integer(mod_stand), PACKAGE="mvMORPH")
+    W<-.Call(mvmorph_weights,nterm=as.integer(n), epochs=epochs,lambda=eig$values,S=eig$vectors,S1=svec,beta=listReg,root=as.integer(mod_stand))
     if(ncol(W)!=length(mu)) stop("\n","The number of parameters for theta is wrong","\n",ncol(W)," values are expected")
 
     # Add measurment error?
@@ -539,13 +568,13 @@ switch(model,
         svec<- pseudoinverse(eig$vectors)
     }
     
-    if(vcv=="fixedRoot" | vcv=="univarpfFixed" | vcv=="univarFixed"){
-        V<-.Call("mvmorph_covar_mat", as.integer(n), bt=bt, lambda=eig$values, S=eig$vectors, sigmasq=sigma, S1=svec, PACKAGE="mvMORPH")
+    if(vcv=="fixedRoot" | vcv=="univarpfFixed" | vcv=="univarFixed" | vcv=="sparse"){
+        V<-.Call(mvmorph_covar_mat, as.integer(n), bt=bt, lambda=eig$values, S=eig$vectors, sigmasq=sigma, S1=svec)
     }else if(vcv=="randomRoot" | vcv=="univarpfRandom" | vcv=="univarRandom"){
-        V<-.Call("simmap_covar", as.integer(n), bt=bt, lambda=eig$values, S=eig$vectors, S1=svec, sigmasq=sigma, PACKAGE="mvMORPH")
+        V<-.Call(simmap_covar, as.integer(n), bt=bt, lambda=eig$values, S=eig$vectors, S1=svec, sigmasq=sigma)
     }
     
-    W<-.Call("mvmorph_weights",nterm=as.integer(n), epochs=epochs,lambda=eig$values,S=eig$vectors,S1=svec,beta=listReg,root=as.integer(mod_stand), PACKAGE="mvMORPH")
+    W<-.Call(mvmorph_weights,nterm=as.integer(n), epochs=epochs,lambda=eig$values,S=eig$vectors,S1=svec,beta=listReg,root=as.integer(mod_stand))
     if(ncol(W)!=length(mu)) stop("\n","The number of parameters for theta is wrong","\n",ncol(W)," values are expected")
 
     # Add measurment error?
@@ -557,7 +586,7 @@ switch(model,
     # Compute the design matrix
     if(is.null(param[["smean"]])==TRUE){ param$smean<-TRUE }
     W<-multD(tree,p,n,smean=param$smean)
-    V<-.Call("kroneckerEB",R=sigma,C=C, beta=beta, Rrows=as.integer(p),  Crows=as.integer(n), PACKAGE="mvMORPH")
+    V<-.Call(kroneckerEB,R=sigma,C=C, beta=beta, Rrows=as.integer(p),  Crows=as.integer(n))
     if(ncol(W)!=length(mu)) stop("\n","The number of parameters for theta is wrong","\n",ncol(W)," values are expected")
 
     # Add measurment error?
@@ -569,12 +598,12 @@ switch(model,
 "RR"={
     # Brownian and OU models with different rates
     if(p==1){
-        Vou<-.Call("mvmorph_covar_ou_fixed",A=C[[before]],alpha=alpha, sigma=sigma, PACKAGE="mvMORPH")
+        Vou<-.Call(mvmorph_covar_ou_fixed,A=C[[before]],alpha=alpha, sigma=sigma)
     }else{
         eig<-eigen(alpha)
-        Vou<-.Call("mvmorph_covar_mat",nterm=as.integer(n),bt=C[[before]],lambda=eig$values,S=eig$vectors,sigmasq=sigma, S1=solve(eig$vectors), PACKAGE="mvMORPH")
+        Vou<-.Call(mvmorph_covar_mat,nterm=as.integer(n),bt=C[[before]],lambda=eig$values,S=eig$vectors,sigmasq=sigma, S1=solve(eig$vectors))
     }
-    V<-.Call("kronecker_shift", R=sig, C=C[[after]], Rrows=as.integer(p), Crows=as.integer(n), V=Vou, PACKAGE="mvMORPH")
+    V<-.Call(kronecker_shift, R=sig, C=C[[after]], Rrows=as.integer(p), Crows=as.integer(n), V=Vou)
     # Compute the design matrix
     if(is.null(param[["smean"]])==TRUE){ param$smean<-TRUE }
     W<-multD(tree,p,n,smean=param$smean)
@@ -588,12 +617,12 @@ switch(model,
 "ER"={
     # Brownian and OU models with the same rates
     if(p==1){
-        Vou<-.Call("mvmorph_covar_ou_fixed",A=C[[before]],alpha=alpha, sigma=sigma, PACKAGE="mvMORPH")
+        Vou<-.Call(mvmorph_covar_ou_fixed,A=C[[before]],alpha=alpha, sigma=sigma)
     }else{
         eig<-eigen(alpha)
-        Vou<-.Call("mvmorph_covar_mat",nterm=as.integer(n),bt=C[[before]],lambda=eig$values,S=eig$vectors,sigmasq=sigma, S1=solve(eig$vectors), PACKAGE="mvMORPH")
+        Vou<-.Call(mvmorph_covar_mat,nterm=as.integer(n),bt=C[[before]],lambda=eig$values,S=eig$vectors,sigmasq=sigma, S1=solve(eig$vectors))
     }
-    V<-.Call("kronecker_shift", R=sig, C=C[[after]], Rrows=as.integer(p), Crows=as.integer(n), V=Vou, PACKAGE="mvMORPH")
+    V<-.Call(kronecker_shift, R=sig, C=C[[after]], Rrows=as.integer(p), Crows=as.integer(n), V=Vou)
     # Compute the design matrix
     if(is.null(param[["smean"]])==TRUE){ param$smean<-TRUE }
     W<-multD(tree,p,n,smean=param$smean)
@@ -606,7 +635,7 @@ switch(model,
 },
 "CV"={
     # Brownian & ACDC models with the same rates
-    V<-.Call("kronecker_shiftEB_BM", R1=sig, R2=sigma, C1=C[[before]], C2=C[[after]], beta=alpha, Rrows=as.integer(p),  Crows=as.integer(n), PACKAGE="mvMORPH")
+    V<-.Call(kronecker_shiftEB_BM, R1=sig, R2=sigma, C1=C[[before]], C2=C[[after]], beta=alpha, Rrows=as.integer(p),  Crows=as.integer(n))
     # Compute the design matrix
     if(is.null(param[["smean"]])==TRUE){ param$smean<-TRUE }
     W<-multD(tree,p,n,smean=param$smean)
@@ -619,7 +648,7 @@ switch(model,
 },
 "CVG"={
     # Brownian & ACDC models with different rates
-    V<-.Call("kronecker_shiftEB_BM", R1=sig, R2=sigma, C1=C[[before]], C2=C[[after]], beta=alpha, Rrows=as.integer(p),  Crows=as.integer(n), PACKAGE="mvMORPH")
+    V<-.Call(kronecker_shiftEB_BM, R1=sig, R2=sigma, C1=C[[before]], C2=C[[after]], beta=alpha, Rrows=as.integer(p),  Crows=as.integer(n))
     # Compute the design matrix
     if(is.null(param[["smean"]])==TRUE){ param$smean<-TRUE }
     W<-multD(tree,p,n,smean=param$smean)
@@ -633,12 +662,12 @@ switch(model,
 "OV"={
     # OU & ACDC models with the same rates
     if(p==1){
-        Vou<-.Call("mvmorph_covar_ou_fixed",A=C[[before]],alpha=alpha, sigma=sigma, PACKAGE="mvMORPH")
+        Vou<-.Call(mvmorph_covar_ou_fixed,A=C[[before]],alpha=alpha, sigma=sigma)
     }else{
         eig<-eigen(alpha)
-        Vou<-.Call("mvmorph_covar_mat",nterm=as.integer(n),bt=C[[before]],lambda=eig$values,S=eig$vectors,sigmasq=sigma,S1=solve(eig$vectors), PACKAGE="mvMORPH")
+        Vou<-.Call(mvmorph_covar_mat,nterm=as.integer(n),bt=C[[before]],lambda=eig$values,S=eig$vectors,sigmasq=sigma,S1=solve(eig$vectors))
     }
-    V<-.Call("kronecker_shiftEB_OU", R=sig, C=C[[after]], beta=beta, Rrows=as.integer(p),  Crows=as.integer(n), V=Vou, PACKAGE="mvMORPH")
+    V<-.Call(kronecker_shiftEB_OU, R=sig, C=C[[after]], beta=beta, Rrows=as.integer(p),  Crows=as.integer(n), V=Vou)
     # Compute the design matrix
     if(is.null(param[["smean"]])==TRUE){ param$smean<-TRUE }
     W<-multD(tree,p,n,smean=param$smean)
@@ -652,12 +681,12 @@ switch(model,
 "OVG"={
     # OU & ACDC models with independent rates
     if(p==1){
-        Vou<-.Call("mvmorph_covar_ou_fixed",A=C[[before]],alpha=alpha, sigma=sigma, PACKAGE="mvMORPH")
+        Vou<-.Call(mvmorph_covar_ou_fixed,A=C[[before]],alpha=alpha, sigma=sigma)
     }else{
         eig<-eigen(alpha)
-        Vou<-.Call("mvmorph_covar_mat",nterm=as.integer(n),bt=C[[before]],lambda=eig$values,S=eig$vectors,sigmasq=sigma,S1=solve(eig$vectors), PACKAGE="mvMORPH")
+        Vou<-.Call(mvmorph_covar_mat,nterm=as.integer(n),bt=C[[before]],lambda=eig$values,S=eig$vectors,sigmasq=sigma,S1=solve(eig$vectors))
     }
-    V<-.Call("kronecker_shiftEB_OU", R=sig, C=C[[after]], beta=beta, Rrows=as.integer(p),  Crows=as.integer(n), V=Vou, PACKAGE="mvMORPH")
+    V<-.Call(kronecker_shiftEB_OU, R=sig, C=C[[after]], beta=beta, Rrows=as.integer(p),  Crows=as.integer(n), V=Vou)
     # Compute the design matrix
     if(is.null(param[["smean"]])==TRUE){ param$smean<-TRUE }
     W<-multD(tree,p,n,smean=param$smean)
@@ -669,8 +698,6 @@ switch(model,
     }
 })
 
-# Select the method for drawing values from the multivariate normal distribution; default is "cholesky"
-if(is.null(param[["method"]])){ methodSim <- "cholesky" }else{ methodSim <- param$method }
 
 ## Simulate the traits from a multivariate normal distribution
 
@@ -683,9 +710,8 @@ if(is.null(param[["method"]])){ methodSim <- "cholesky" }else{ methodSim <- para
     }else{
         traits<-matrix(rmvnorm_simul(n=nsim,as.numeric(W%*%as.numeric(mu)),V,methodSim),ncol=nsim)
         rownames(traits)<-names_rows
-        colnames(traits)<-names_traits
+        #colnames(traits)<-names_traits
     }
     return(traits)
 }
-
 

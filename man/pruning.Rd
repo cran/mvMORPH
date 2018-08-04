@@ -6,34 +6,46 @@ Pruning algorithm to compute the square root of the phylogenetic covariance matr
 %%  ~~function to do ... ~~
 }
 \description{
-This function use the pruning algorithm (Felsenstein 1973) to efficiently compute the determinant of the phylogenetic covariance matrix as well as the square root of this matrix (or it's inverse; Stone 2011, Khabbazian et al. 2016). This algorithm is faster than using "eigen" or "cholesky" function to compute the determinant or the square root (see e.g., Clavel et al. 2015) and can be used to compute the log-likelihood of a model in linear time.
+This function use the pruning algorithm (Felsenstein 1973) to efficiently compute the determinant of the phylogenetic covariance matrix as well as the square root of this matrix (or it's inverse; Stone 2011, Khabbazian et al. 2016). This algorithm is faster than using "eigen" or "cholesky" function to compute the determinant or the square root (see e.g., Clavel et al. 2015) and can be used to compute independent contrasts and the log-likelihood of a model in linear time.
 
 %%  ~~ A concise (1-5 lines) description of what the function does. ~~
 }
 \usage{
-pruning(tree, inv=TRUE)
+pruning(tree, inv=TRUE, scaled=TRUE, trans=TRUE, check=TRUE)
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{ 
 
- \item{tree}{
+\item{tree}{
 Phylogenetic tree (an object of class "phylo" or "simmap").
-%%     ~~Describe \code{model2} here~~
 }
-  \item{inv}{
-Return the matrix square root of either the covariance matrix (inv=FALSE) or it's inverse (inv=TRUE, the default)
-%%     ~~Describe \code{model1} here~~
+
+\item{inv}{
+Return the matrix square root of either the covariance matrix (inv=FALSE) or it's inverse (inv=TRUE, the default). This matrix is a "contrasts" matrix.
+}
+
+\item{scaled}{
+Indicates whether the contrasts should be scaled with their expected variances (default to TRUE).
+}
+
+\item{trans}{
+Return the transpose (trans=TRUE) of the matrix square root/contrasts matrix.
+(i.e. by default it returns a matrix equivalent to the upper triangular Cholesky factor)
+}
+
+\item{check}{
+Check if the input tree is dichotomous and in "postorder" (see ?is.binary.tree and ?reorder.phylo).
 }
 
 }
 \details{
-The tree is assumed to be fully dichotomic and in "postorder", otherwise the functions \emph{multi2di} and \emph{reorder.phylo} are used internally.
+The tree is assumed to be fully dichotomic and in "postorder", otherwise the functions \emph{multi2di} and \emph{reorder.phylo} are used internally when \emph{check=TRUE}.
 
 %%  ~~ If necessary, more details than the description above ~~
 }
 \value{
 
-\item{sqrtMat  }{The matrix square root }
+\item{sqrtMat  }{The matrix square root (contrasts matrix) }
 \item{varNode  }{Variance associated to each node values (similar to "contrasts" variance)}
 \item{varRoot  }{Variance associated to the root value (similar to the ancestral state variance)}
 \item{det      }{Log-determinant of the phylogenetic covariance of the tree}
@@ -65,6 +77,7 @@ Julien Clavel
 
 \seealso{
 \code{\link{mvLL}}
+\code{\link{mvgls}}
 %% ~~objects to See Also as \code{\link{help}}, ~~~
 }
 

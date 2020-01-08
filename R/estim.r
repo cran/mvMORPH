@@ -30,7 +30,7 @@ if(any(is.na(data))){
 }
 
 # bind error to a vector
-if(!is.null(error)){error<-as.vector(error[-Indice_NA])}
+if(!is.null(error) & !is.null(Indice_NA)){ error<-as.vector(error[-Indice_NA]) }
 
 # First impute the dataset to compute the ancestral states?
 if(any(is.na(data)) & asr==TRUE){
@@ -51,7 +51,7 @@ if(any(class(object)=="mvmorph")){
     ## Ancestral states estimation??
     ## I must adapt it to the simmap format
     if(asr==TRUE){
-        if(!inherits(tree,"simmap") & k!=1) stop("The tree should be an object of class \"simmap\".")
+        if(!inherits(tree,"simmap") & k!=1 & model!="OU1") stop("The tree should be an object of class \"simmap\".")
         if(!inherits(tree,"phylo")) stop("The \"asr=TRUE\" argument works only with phylogenies.")
         # number of tips
         ntip <- length(tree$tip.label)
@@ -61,7 +61,7 @@ if(any(class(object)=="mvmorph")){
         sp_names <- tree$tip.label
         if(any(sp_names==rownames(data))){data<-data[sp_names,]}
         
-        if(k!=1){
+        if(k!=1 & model!="OU1"){
             C <- vcvSplit(tree, internal=TRUE)
             n <- ncol(C[[1]])
         }else{
@@ -78,7 +78,7 @@ if(any(class(object)=="mvmorph")){
             # species names
             sp_names <- tree$tip.label
 
-            if(k!=1){
+            if(k!=1 & model!="OU1"){
                 C <- vcvSplit(tree)
                 if(any(sp_names==rownames(data))){C<-lapply(C,function(x) x[rownames(data),rownames(data)])}
             }else{
@@ -266,7 +266,7 @@ switch(model,
     }else{
         V<-.Call(simmap_covar, as.integer(n), bt=bt, lambda=eig$values, S=eig$vectors, S1=svec, sigmasq=sigma)
     }
-    W<-.Call("mvmorph_weights",nterm=as.integer(n), epochs=epochs,lambda=eig$values,S=eig$vectors,S1=svec,beta=listReg,root=as.integer(mod_stand))
+    W<-.Call("mvmorph_weights",nterm=as.integer(n), epochs=epochs, lambda=eig$values, S=eig$vectors, S1=svec, beta=listReg, root=as.integer(mod_stand))
     # Add measurment error?
     if(is.null(error)==FALSE){
         if(asr==TRUE){
@@ -289,7 +289,7 @@ switch(model,
     }else{
         V<-.Call(simmap_covar, as.integer(n), bt=bt, lambda=eig$values, S=eig$vectors, S1=svec, sigmasq=sigma)
     }
-    W<-.Call(mvmorph_weights, nterm=as.integer(n), epochs=epochs,lambda=eig$values,S=eig$vectors,S1=svec,beta=listReg,root=as.integer(mod_stand))
+    W<-.Call(mvmorph_weights, nterm=as.integer(n), epochs=epochs, lambda=eig$values, S=eig$vectors, S1=svec, beta=listReg, root=as.integer(mod_stand))
     # Add measurment error?
     if(is.null(error)==FALSE){
         if(asr==TRUE){
@@ -460,11 +460,11 @@ if(asr==TRUE){
     # extend Cunningham et al. 1998 to multivariate
     # Models included in the objects
     ## covariance between tip species and ancestral states
-    varAY <- V[-Indice_EXT, Indice_EXT]
+    varAY <- V[-Indice_EXT, Indice_EXT, drop=FALSE]
     ## covariance between ancestral states
-    varA <- V[-Indice_EXT, -Indice_EXT]
+    varA <- V[-Indice_EXT, -Indice_EXT, drop=FALSE]
     ## covariance between tip species
-    varY <- V[Indice_EXT,Indice_EXT]
+    varY <- V[Indice_EXT,Indice_EXT, drop=FALSE]
     data_complete<-data
     
     
@@ -478,9 +478,9 @@ if(asr==TRUE){
     anc <- as.numeric(W%*%as.numeric(mu))
     
     # Prepare the covariances
-    varY<-V[-Indice_NA,-Indice_NA]
-    varAY<-V[Indice_NA,-Indice_NA]
-    varA<-V[Indice_NA,Indice_NA]
+    varY<-V[-Indice_NA,-Indice_NA, drop=FALSE]
+    varAY<-V[Indice_NA,-Indice_NA, drop=FALSE]
+    varA<-V[Indice_NA,Indice_NA, drop=FALSE]
     # Prepare the data
     anc<-anc[Indice_NA]
     data_complete<-data[-Indice_NA]

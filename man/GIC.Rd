@@ -38,7 +38,7 @@ Note that the current implementation of the criterion has not been tested for mu
 
 	
 \references{
-Clavel, J., Aristide, L., Morlon, H., 2018. A Penalized Likelihood framework for high-dimensional phylogenetic comparative methods and an application to new-world monkeys brain evolution. Systematic Biology DOI:10.1093/sysbio/syy045.
+Clavel, J., Aristide, L., Morlon, H., 2019. A Penalized Likelihood framework for high-dimensional phylogenetic comparative methods and an application to new-world monkeys brain evolution. Systematic Biology 68(1): 93-116.
 
 Konishi S., Kitagawa G. 1996. Generalised information criteria in model selection. Biometrika. 83:875-890.
 
@@ -60,7 +60,7 @@ n <- 32 # number of species
 p <- 50 # number of traits
 
 tree <- pbtree(n=n) # phylogenetic tree
-R <- crossprod(matrix(rnorm(p*p), ncol=p)) # a random symmetric matrix (covariance)
+R <- crossprod(matrix(runif(p*p), ncol=p)) # a random symmetric matrix (covariance)
 # simulate a dataset
 Y <- mvSIM(tree, model="BM1", nsim=1, param=list(sigma=R))
 

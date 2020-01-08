@@ -1,8 +1,8 @@
-## ---- results="hide", message=FALSE--------------------------------------
+## ---- results="hide", message=FALSE-------------------------------------------
 # Load the package and dependencies (ape, phytools, corpcor, subplex)
 library(mvMORPH)
 
-## ---- comment=">", results="hide"----------------------------------------
+## ---- comment=">", results="hide"---------------------------------------------
 # Use a specified random number seed for reproducibility
 set.seed(14)
 par(mfrow=c(1,3))
@@ -26,7 +26,7 @@ branch_2 <- match("t2",tree3$tip.label)
 tree4 <- paintSubTree(tree4, branch_2, state="group_3", stem=0.5)
 plot(tree4)
 
-## ---- comment=">"--------------------------------------------------------
+## ---- comment=">"-------------------------------------------------------------
 # Make a tiny time-series object from fossil ages within [55; 32.5] Ma
 fossil_ages <- c(55,46,43,38,35,32.5)
 
@@ -34,7 +34,7 @@ fossil_ages <- c(55,46,43,38,35,32.5)
 timeseries <- max(fossil_ages)-fossil_ages
 timeseries
 
-## ---- comment=">", eval=FALSE--------------------------------------------
+## ---- comment=">", eval=FALSE-------------------------------------------------
 #  set.seed(14)
 #  # Generating a random tree with 50 species
 #  tree<-pbtree(n=50)
@@ -60,7 +60,7 @@ timeseries
 #  
 #  head(simul_1)
 
-## ---- comment=">", results="hide", eval=FALSE----------------------------
+## ---- comment=">", results="hide", eval=FALSE---------------------------------
 #  # fit the BMM model on simulated data
 #  fit <- mvBM(tree, simul_1)
 #  
@@ -76,13 +76,13 @@ timeseries
 #  hist(log_distribution, main="Log-likelihood distribution")
 #  abline(v=fit$LogLik, lty=2, lwd=5, col="red")
 
-## ----comment=">"---------------------------------------------------------
+## ----comment=">"--------------------------------------------------------------
 set.seed(1)
 n <- 32 # number of species
 p <- 50 # number of traits (p>n)
 
 tree <- pbtree(n=n, scale=1) # phylogenetic tree
-R <- crossprod(matrix(rnorm(p*p), ncol=p)) # a random symmetric matrix (covariance)
+R <- crossprod(matrix(runif(p*p), ncol=p)) # a random symmetric matrix (covariance)
 # simulate a BM dataset
 Y <- mvSIM(tree, model="BM1", nsim=1, param=list(sigma=R, theta=rep(0,p)))
 data=list(Y=Y)
@@ -101,7 +101,7 @@ GIC(fit1); GIC(fit2); GIC(fit3) # BM have the lowest GIC value (see # Model comp
 data=list(Y=Y, X=rnorm(n))
 mvgls(Y~X, data=data, tree, model="lambda", penalty="RidgeArch")
 
-## ---- comment=">", results="hide"----------------------------------------
+## ---- comment=">", results="hide"---------------------------------------------
 set.seed(1)
 tree <- pbtree(n=50)
 # Simulate the traits
@@ -114,7 +114,7 @@ fit_1 <- mvBM(tree, data, model="BM1")
 fit_2 <- mvBM(tree, data, model="BM1", param=list(constraint="equal"))
 fit_3 <- mvBM(tree, data, model="BM1", param=list(constraint="diagonal"))
 
-## ----comment=">"---------------------------------------------------------
+## ----comment=">"--------------------------------------------------------------
 # Compare their AIC values
 AIC(fit_1); AIC(fit_2); AIC(fit_3)
 
@@ -144,7 +144,7 @@ cor2pcor(Evol_cov)
 mdavg <- lapply(1:3, function(x) results[[x]]$theta*weights$aicw[x])
 Evol_theta <- Reduce('+',mdavg)
 
-## ----comment=">", message=FALSE, results='hide'--------------------------
+## ----comment=">", message=FALSE, results='hide'-------------------------------
 set.seed(100)
 tree<-rtree(100)
 
@@ -157,7 +157,7 @@ data<-mvSIM(tree, param=list(sigma=sigma, alpha=alpha,
             
 mvOU(tree, data, model="OU1", param=list(root=TRUE))
 
-## ---- comment=">", message=FALSE, results='hide'-------------------------
+## ---- comment=">", message=FALSE, results='hide'------------------------------
 # timeseries 
 ts <- 0:49
 sigma<-matrix(c(0.1,0.05,0.05,0.1),2)
@@ -169,7 +169,7 @@ data<-mvSIM(ts, param=list(sigma=sigma, alpha=alpha,
 mvOUTS(ts, data, param=list(root=TRUE))
 mvOUTS(ts, data, param=list(root=FALSE))
 
-## ----comment=">", results='hide', message=FALSE--------------------------
+## ----comment=">", results='hide', message=FALSE-------------------------------
 # BM model with two selective regimes
 set.seed(1)
 tree<-pbtree(n=50)
@@ -191,13 +191,13 @@ fit_2 <- mvBM(tree, data, model="BMM")
 fit_3 <- mvBM(tree, data, model="BM1", param=list(smean=FALSE))
 fit_4 <- mvBM(tree, data, model="BMM", param=list(smean=FALSE))
 
-## ----comment=">"---------------------------------------------------------
+## ----comment=">"--------------------------------------------------------------
 # Compare the fitted models.
 results <- list(fit_1,fit_2,fit_3,fit_4)
 aicw(results, aicc=TRUE)
 
 
-## ----comment=">", results='hide'-----------------------------------------
+## ----comment=">", results='hide'----------------------------------------------
 # Simulated dataset
 set.seed(1)
 # Generating a random non-ultrametric tree
@@ -217,14 +217,14 @@ fit_2 <- mvBM(tree, data, param=list(trend=TRUE), model="BM1")
 # model with similar trend for both traits
 fit_3 <- mvBM(tree, data, param=list(trend=c(1,1)), model="BM1") 
 
-## ----comment=">"---------------------------------------------------------
+## ----comment=">"--------------------------------------------------------------
 results <- list(fit_1,fit_2,fit_3)
 aicw(results)
 
 # are the differences between trends significant?
 LRT(fit_2,fit_3) # No... as expected
 
-## ----comment=">", results='hide', message=FALSE--------------------------
+## ----comment=">", results='hide', message=FALSE-------------------------------
 # Simulate the time serie and data
 timeseries  <- 0:49
 error <- matrix(0, nrow=50, ncol=2); error[1,] <- 0.001
@@ -238,10 +238,10 @@ matplot(data, type="o", pch=1, xlab="Time (relative)")
 fit1 <- mvRWTS(timeseries , data, error)
 fit2 <- mvRWTS(timeseries , data, error, param=list(trend=c(1,1)))
 
-## ---- comment=">"--------------------------------------------------------
+## ---- comment=">"-------------------------------------------------------------
 LRT(fit2,fit1)
 
-## ---- results="hide", comment=">", message=FALSE-------------------------
+## ---- results="hide", comment=">", message=FALSE------------------------------
 set.seed(14)
 # Generating a random tree
 tree<-pbtree(n=50)
@@ -261,7 +261,7 @@ user_const <- matrix(c(1,3,3,3,2,3,3,3,2),3)
 fit2 <- mvBM(tree, data, model="BM1", param=list(constraint=user_const)
              , method="pic", optimization="subplex")
 
-## ----comment=">"---------------------------------------------------------
+## ----comment=">"--------------------------------------------------------------
 # Some covariances constrained to zero
 user_const <- matrix(c(1,4,4,4,2,NA,4,NA,3),3)
 
@@ -271,7 +271,7 @@ fit3 <- mvBM(tree, data, model="BM1", method="pic"
              , param=list(constraint=user_const), optimization="subplex")
 
 
-## ---- comment=">", results='hide'----------------------------------------
+## ---- comment=">", results='hide'---------------------------------------------
 set.seed(14)
 tree <- rtree(50)
 alpha<-matrix(c(0.6,0,-0.6,0.3),2)
@@ -291,11 +291,11 @@ fit_2 <- mvOU(tree, data, model="OU1", param=list(decomp="upper", root=TRUE))
 # Body size lag behind brain-size
 fit_3 <- mvOU(tree, data, model="OU1", param=list(decomp="lower", root=TRUE))
 
-## ---- comment=">"--------------------------------------------------------
+## ---- comment=">"-------------------------------------------------------------
 results <- list(fit_1, fit_2, fit_3)
 aicw(results)
 
-## ----comment=">"---------------------------------------------------------
+## ----comment=">"--------------------------------------------------------------
 # try user defined constraints
 set.seed(100)
 ts <- 50
@@ -314,7 +314,7 @@ data <- mvSIM(timeseries , model="OUTS", param=list(alpha=alpha,
 matplot(data, type="o", pch=1, xlab="Time (relative)")
 legend("bottomright", inset=.05, legend=colnames(data), pch=19, col=c(1,2,3), horiz=TRUE)
 
-## ---- comment=">", results="hide", message=FALSE, eval=FALSE-------------
+## ---- comment=">", results="hide", message=FALSE, eval=FALSE------------------
 #  # define an user constrained drift matrix
 #  indice <- matrix(NA,3,3)
 #  diag(indice) <- c(1,2,3)
@@ -326,7 +326,7 @@ legend("bottomright", inset=.05, legend=colnames(data), pch=19, col=c(1,2,3), ho
 #  
 #  LRT(fit_1, fit_2)
 
-## ---- comment=">", results='hide'----------------------------------------
+## ---- comment=">", results='hide'---------------------------------------------
 set.seed(1)
 # simulate a tree scaled to unit length
 tree <- pbtree(n=100, scale=1)
@@ -351,13 +351,13 @@ fit_3 <- mvOU(tree, trait, model="OU1", param=list(vcv="randomRoot"))
 fit_4 <- mvOU(tree, trait, model="OU1", param=list(vcv="fixedRoot"))
 
 
-## ---- comment=">"--------------------------------------------------------
+## ---- comment=">"-------------------------------------------------------------
 # compare the log-likelihood
 abs(logLik(fit_1))-abs(logLik(fit_2)) # large half-life
 abs(logLik(fit_3))-abs(logLik(fit_4)) # small half-life
 
 
-## ---- comment=">", results="hide"----------------------------------------
+## ---- comment=">", results="hide"---------------------------------------------
 set.seed(1)
 tree <- pbtree(n=50)
 # Simulate the traits
@@ -368,11 +368,11 @@ data<-mvSIM(tree, param=list(sigma=sigma, theta=theta), model="BM1", nsim=1)
 # Fit the model
 fit <- mvBM(tree, data, model="BM1")
 
-## ---- comment=">", results="hide"----------------------------------------
+## ---- comment=">", results="hide"---------------------------------------------
 # the loglik function (the order of parameter is printed:)
 fit$llik
 
-## ---- comment=">"--------------------------------------------------------
+## ---- comment=">"-------------------------------------------------------------
 # Use the maximum likelihood parameters from the optimizer
 par <- fit$param$opt$par
 fit$llik(par)
@@ -382,23 +382,23 @@ all.equal(fit$llik(par),logLik(fit)) # similar results
 # Return also the analytic MLE for theta
 fit$llik(par, theta=TRUE)
 
-## ---- comment=">"--------------------------------------------------------
+## ---- comment=">"-------------------------------------------------------------
 # Use the maximum likelihood parameters from the optimizer
 fit$llik(c(par,fit$theta), root.mle=FALSE)
 
 
-## ---- comment=">"--------------------------------------------------------
+## ---- comment=">"-------------------------------------------------------------
 # Reconstruct sigma with the untransformed values of the optimizer
 sigma <- fit$param$sigmafun(par)
 
 all.equal(as.vector(sigma), as.vector(fit$sigma))
 
-## ---- comment=">"--------------------------------------------------------
+## ---- comment=">"-------------------------------------------------------------
 # Return the log-likelihood function only
 fit <- mvBM(tree, data, model="BM1", optimization="fixed")
 
 
-## ---- results='hide'-----------------------------------------------------
+## ---- results='hide'----------------------------------------------------------
 # Simulated dataset
 set.seed(14)
 # Generating a random tree
@@ -416,14 +416,14 @@ data[25,1]<-NA
 # Fit of model 1
 fit_1<-mvBM(tree,data,model="BM1")
 
-## ---- comment=">"--------------------------------------------------------
+## ---- comment=">"-------------------------------------------------------------
 # Estimate the missing cases
 imp<-estim(tree, data, fit_1, asr=FALSE)
 
 # Check the imputed data
 imp$estim[1:10,]
 
-## ---- comment=">"--------------------------------------------------------
+## ---- comment=">"-------------------------------------------------------------
 plot(tree, cex=0.6)
 nodelabels(, cex=0.6)
 
@@ -431,7 +431,7 @@ nodelabels(, cex=0.6)
 asr<-estim(tree, data, fit_1, asr=TRUE)
 asr$estim[1:10,]
 
-## ----comment=">"---------------------------------------------------------
+## ----comment=">"--------------------------------------------------------------
 set.seed(123)
 # Here I show a simple example of model fitting using mvMORPH
 tree <- pbtree(n=100)
@@ -496,7 +496,7 @@ result <- list(logLik=fit$value, kappa=fit$par, sigma2=log_lik(fit$par, tree,
 # as expected the covariances are low
 print(result)
 
-## ----comment=">"---------------------------------------------------------
+## ----comment=">"--------------------------------------------------------------
 set.seed(123)
 # Simulate the time serie
 timeseries <- 0:99
@@ -549,7 +549,7 @@ print(results)
 
 
 
-## ---- comment=">", results="hide", eval=FALSE----------------------------
+## ---- comment=">", results="hide", eval=FALSE---------------------------------
 #  set.seed(1)
 #  tree <- pbtree(n=50)
 #  # Simulate the traits

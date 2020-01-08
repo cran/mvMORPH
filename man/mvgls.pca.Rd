@@ -41,7 +41,7 @@ Ploting options, the number of axes to display (\code{axes=c(1,2)} is the defaul
 	Contrary to conventional PCA, the principal axes of the gls PCA are not orthogonal, they represent the main axes of independent (according to a given phylogenetic or time-series model) changes.}
 	
 \references{
-Clavel, J., Aristide, L., Morlon, H., 2018. A Penalized Likelihood framework for high-dimensional phylogenetic comparative methods and an application to new-world monkeys brain evolution. Systematic Biology DOI:10.1093/sysbio/syy045.
+Clavel, J., Aristide, L., Morlon, H., 2019. A Penalized Likelihood framework for high-dimensional phylogenetic comparative methods and an application to new-world monkeys brain evolution. Systematic Biology 68(1): 93-116.
 
 Revell, L.J., 2009. Size-correction and principal components for intraspecific comparative studies. Evolution, 63:3258-3268.
 }
@@ -50,7 +50,8 @@ Revell, L.J., 2009. Size-correction and principal components for intraspecific c
 
 \seealso{
 \code{\link{mvgls}},
-\code{\link{GIC}}
+\code{\link{GIC}},
+\code{\link{EIC}}
 }
 
 \examples{
@@ -60,7 +61,7 @@ n <- 32 # number of species
 p <- 30 # number of traits
 
 tree <- pbtree(n=n) # phylogenetic tree
-R <- crossprod(matrix(rnorm(p*p),p))  # a random symmetric matrix (covariance)
+R <- crossprod(matrix(runif(p*p),p))  # a random symmetric matrix (covariance)
 
 # simulate a dataset
 Y <- mvSIM(tree, model="BM1", nsim=1, param=list(sigma=R))

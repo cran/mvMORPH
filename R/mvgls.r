@@ -11,13 +11,7 @@
 ################################################################################
 
 
-mvgls <- function(formula, data=list(), tree, model, method=c("LOOCV","LL","H&L","Mahalanobis"), REML=TRUE, ...){
-    
-    # retrieve data and formula as in lm
-    model_fr = model.frame(formula=formula, data=data)
-    X = model.matrix(attr(model_fr, "terms"), data=model_fr)
-    Y = model.response(model_fr)
-    method = match.arg(method)
+mvgls <- function(formula, data=list(), tree, model, method=c("PL-LOOCV","LL"), REML=TRUE, ...){
     
     # Recover options
     args <- list(...)
@@ -29,13 +23,31 @@ mvgls <- function(formula, data=list(), tree, model, method=c("LOOCV","LL","H&L"
     if(is.null(args[["penalty"]])) penalty <- "RidgeArch" else penalty <- args$penalty
     if(is.null(args[["optimization"]])) optimization <- "L-BFGS-B" else optimization <- args$optimization
     if(is.null(args[["ncores"]])) ncores <- 1L else ncores <- args$ncores
-    if(is.null(args[["up"]])) up <- NULL else up <- args$up
-    if(is.null(args[["low"]])) low <- NULL else low <- args$low
+    if(is.null(args[["upper"]])) up <- NULL else up <- args$upper
+    if(is.null(args[["lower"]])) low <- NULL else low <- args$lower
     if(is.null(args[["tol"]])) tol <- NULL else tol <- args$tol
     if(is.null(args[["start"]])) start <- NULL else start <- args$start
+    if(is.null(args[["contrasts"]])) contrasts.def <- NULL else contrasts.def <- args$contrasts
+    
+    # check for coercion issues
+    data_format = sapply(data, function(x) inherits(x,"phylo"))
+    if(any(data_format)){
+        index <- which(data_format==TRUE)
+        data[[index]] <- NULL
+    }
+    
+    # retrieve data and formula as in lm
+    model_fr = model.frame(formula=formula, data=data)
+    X = model.matrix(attr(model_fr, "terms"), data=model_fr, contrasts.arg=contrasts.def)
+    Y = model.response(model_fr)
+    assign <- attr(X, "assign")
+    
+    # Option for bootstrap and permutation method
+    if(!is.null(args[["response"]])) Y <- args$response
     
     # Warnings & checks
-    method <- match.arg(method)[1]
+    method = match.arg(method[1], c("PL-LOOCV","LOOCV","LL","H&L","Mahalanobis"))
+    if(method=="PL-LOOCV") method = "LOOCV" # to keep the explicit name with 'PL'
     if(missing(tree)) stop("Please provide a phylogenetic tree of class \"phylo\" ")
     if(any(is.na(Y))) stop("Sorry, the PL approach do not handle yet missing cases.")
     if(missing(model)) stop("Please provide a model (e.g., \"BM\", \"OU\", \"EB\", or \"lambda\" ")
@@ -46,7 +58,7 @@ mvgls <- function(formula, data=list(), tree, model, method=c("LOOCV","LL","H&L"
     if (all(rownames(model_fr) %in% tree$tip.label)){ # to be changed for TS
         Y <- Y[tree$tip.label,,drop=FALSE]
         X <- X[tree$tip.label,,drop=FALSE]
-    }else{
+    }else if(is.null(args[["response"]])){
         warning("the data has no names, order assumed to be the same as tip labels in the tree.\n")
     }
     if(!inherits(tree, "phylo")) stop("object \"tree\" is needed if no custom correlation structure provided.")
@@ -99,7 +111,7 @@ mvgls <- function(formula, data=list(), tree, model, method=c("LOOCV","LL","H&L"
     tuning <- bounds$trTun(estimModel$par)
     mod_par <- bounds$trPar(estimModel$par)
     if(!is.null(mserr)) corrModel$mserr <- mserr_par <- bounds$trSE(estimModel$par) else mserr_par <- NA
-    ll_value <- estimModel$value # either the loocv or the regular likelihood
+    ll_value <- -estimModel$value # either the loocv or the regular likelihood (minus because we minimize)
     
     
     # List of results to return
@@ -116,7 +128,7 @@ mvgls <- function(formula, data=list(), tree, model, method=c("LOOCV","LL","H&L"
     numIter <- estimModel$count[1]
     S <- crossprod(residuals)/ndimCov
     R <- .penalizedCov(S, penalty=ifelse(method=="LL", method, penalty), targM=target, tuning=tuning)
-    ndims <- list(n=n, p=p, m=m)
+    ndims <- list(n=n, p=p, m=m, assign=assign)
     
     # End
     if(echo==TRUE) message("Done in ", numIter," iterations.")
@@ -134,13 +146,13 @@ mvgls <- function(formula, data=list(), tree, model, method=c("LOOCV","LL","H&L"
         numIter=numIter,
         residuals=residuals_raw,
         sigma=R,
-        tuning=ifelse(method=="LL", NA, tuning),
-        param=ifelse(model=="BM", NA, mod_par),
+        tuning=if(method=="LL") NA else tuning,
+        param=if(model=="BM") NA else mod_par,
         mserr=mserr_par,
         start_values=start,
         corrSt=corrSt,
-        penalty=ifelse(method=="LL", "LL", penalty),
-        target=ifelse(method=="LL", "LL", target),
+        penalty=if(method=="LL") "LL" else penalty,
+        target=if(method=="LL") "LL" else target,
         REML=REML,
         opt=estimModel)
     

@@ -18,7 +18,7 @@
 
 .loocvPhylo <- function(par, cvmethod, targM, corrStr, penalty, error, nobs){
     
-    if(corrStr$REML) n <- nobs-ncol(corrStr$X)
+    if(corrStr$REML) n <- nobs-ncol(corrStr$X) else n <- nobs
     p = corrStr$p
     # parameters
     alpha = corrStr$bounds$trTun(par)
@@ -28,7 +28,8 @@
     mod_par = .corrStr(corrStr$bounds$trPar(par), corrStr);
     
     # GLS estimates
-    B <- pseudoinverse(mod_par$X)%*%mod_par$Y
+    XtX <- pseudoinverse(mod_par$X)
+    B <- XtX%*%mod_par$Y
     residuals <- mod_par$Y - mod_par$X%*%B
     Ccov <- mod_par$det
     
@@ -50,11 +51,11 @@
         
         llik <- sapply(1:(nobs-1), function(x){
             rk <- sum(backsolve(Gi, residuals[x,], transpose = TRUE)^2)
-            log(1 - beta*rk) + (rk/(1 - beta*rk))
+            (n/(nobs-1))*log(1 - beta*rk) + (rk/(1 - beta*rk))
         })
         
         ll <- 0.5 * (n*p*log(2*pi) + p*Ccov +
-        n*sum(2*log(diag(Gi))) + n*mean(llik))
+        n*sum(2*log(diag(Gi))) + sum(llik))
     },
     "Mahalanobis"={
         
@@ -76,33 +77,31 @@
         # target matrix
         target <- .targetM(Sk, targM, penalty)
         
-        # Nominal loocv
-        XtX <- solve(crossprod(mod_par$X))
-        
         # hat matrix
-        h <- diag(mod_par$X%*%pseudoinverse(mod_par$X))
+        h <- diag(mod_par$X%*%XtX)
         
         # check for hat score of 1 (e.g. MANOVA design)
         nloo <- corrStr$nloo[!h+1e-8>=1]
+        const <- n/length(nloo)
         
         llik <- sapply(nloo, function(x){
-            Bx <- B - XtX%*%mod_par$X[x,]%*%residuals[x,]/(1-h[x]) # rank-1 update
+            Bx <- B - tcrossprod(XtX[,x], residuals[x,])/(1-h[x]) # rank-1 update
             # update the residuals
             residuals2 <- mod_par$Y - mod_par$X%*%Bx
             Skpartial <- crossprod(residuals2[-x,])/(n-1)
-            .regularizedLik(Skpartial, residuals[x,], alpha, targM, target, penalty)
+            .regularizedLik(Skpartial, residuals[x,], alpha, targM, target, penalty, const)
         })
         
-        ll <- 0.5 * (n*p*log(2*pi) + p*Ccov + n*mean(llik))
+        ll <- 0.5 * (n*p*log(2*pi) + p*Ccov + sum(llik))
         
     },
     "LL"={
         # Maximum Likelihood
         Gi <- try(chol(Sk), silent=TRUE)
         if(inherits(Gi, 'try-error')) return(1e6)
-        quadprod <- sum(backsolve(Gi, t(residuals), transpose = TRUE)^2)/n
+        quadprod <- sum(backsolve(Gi, t(residuals), transpose = TRUE)^2)
         detValue <- sum(2*log(diag(Gi)))
-        ll <- 0.5 * (n*p*log(2*pi) + p*Ccov + n*detValue + n*quadprod)
+        ll <- 0.5 * (n*p*log(2*pi) + p*Ccov + n*detValue + quadprod)
         
     },
     stop("You must specify \"LOOCV\", \"H&L\" or \"Mahalanobis\" method for computing the LOOCV score and \"LL\" for the log-likelihood")
@@ -194,10 +193,10 @@
 
 # ------------------------------------------------------------------------- #
 # .regularizedLik return the log-lik with the regularized estimate          #
-# options: S, residuals, lambda, targM, target, penalty                     #
+# options: S, residuals, lambda, targM, target, penalty, const              #
 #                                                                           #
 # ------------------------------------------------------------------------- #
-.regularizedLik <- function(S, residuals, lambda, targM, target, penalty){
+.regularizedLik <- function(S, residuals, lambda, targM, target, penalty, const=1){
     
     switch(penalty,
     "RidgeArch"={
@@ -205,7 +204,7 @@
         Gi <- try(chol(G), silent=TRUE)
         if(inherits(Gi, 'try-error')) return(1e6)
         rk <- sum(backsolve(Gi, residuals, transpose = TRUE)^2)
-        llik <- sum(2*log(diag(Gi))) + rk
+        llik <- const*sum(2*log(diag(Gi))) + rk
     },
     "RidgeAlt"={
         quad <- .makePenaltyQuad(S, lambda, target, targM)
@@ -213,7 +212,7 @@
         detG <- sum(log(quad$ev))
         Swk <- tcrossprod(residuals)
         rk <- sum(Swk*Gi)
-        llik <- detG + rk
+        llik <- const*detG + rk
     },
     "LASSO"={
         LASSO <- glassoFast(S, lambda, maxIt=500)
@@ -221,7 +220,7 @@
         Gi <- LASSO$wi;
         Swk <- tcrossprod(residuals);
         rk <- sum(Swk*Gi);
-        llik <- as.numeric(determinant(G)$modulus) + rk
+        llik <- const*as.numeric(determinant(G)$modulus) + rk
     })
     
     return(llik)

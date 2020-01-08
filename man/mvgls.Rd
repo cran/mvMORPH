@@ -6,12 +6,12 @@ Fit linear model using Generalized Least Squares to multivariate (high-dimension
 %%  ~~function to do ... ~~
 }
 \description{
-This function use maximum likelihood (or restricted likelihood) and penalized likelihood approaches to fit linear models where the errors are allowed to be correlated (i.e. a GLS model for serially correlated phylogenetic and time-series data). \code{mvgls} uses a penalized-likelihood (PL) approach (see descriptions in Clavel et al. 2018) to fit linear models to high-dimensional data sets (where the number of variables \emph{p} is approaching or is larger than the number of observations \emph{n}). The PL approach generally provides improved estimates compared to ML.
+This function use maximum likelihood (or restricted likelihood) and penalized likelihood approaches to fit linear models where the errors are allowed to be correlated (i.e. a GLS model for serially correlated phylogenetic and time-series data). \code{mvgls} uses a penalized-likelihood (PL) approach (see descriptions in Clavel et al. 2019) to fit linear models to high-dimensional data sets (where the number of variables \emph{p} is approaching or is larger than the number of observations \emph{n}). The PL approach generally provides improved estimates compared to ML.
 
 %%  ~~ A concise (1-5 lines) description of what the function does. ~~
 }
 \usage{
-mvgls(formula, data, tree, model, method=c("LOOCV","LL","H&L","Mahalanobis"),
+mvgls(formula, data, tree, model, method=c("PL-LOOCV","LL"),
 		REML=TRUE, ...)
 }
 %- maybe also 'usage' for other objects documented here.
@@ -35,7 +35,7 @@ The evolutionary model: "BM" is Brownian Motion, "OU" is Ornstein-Uhlenbeck, "EB
 }
 
 \item{method}{
-The method used to fit the model. "LOOCV" is the nominal leave one out cross-validation of the log-likelihood, "LL" is the log-likelihood (used in the conventional ML and REML estimation), "H&L" is a fast LOOCV approach based on Hoffbeck and Landgrebe (1996) tricks, and "Mahalanobis" is an approximation of the LOOCV score proposed by Theiler (2012). Both "H&L" and "Mahalanobis" work only with the "RidgeArch" penalty and for intercept only models (see details).
+The method used to fit the model. "PL-LOOCV" (or equivalently just "LOOCV") is the nominal leave one out cross-validation of the penalized log-likelihood, "LL" is the log-likelihood (used in the conventional ML and REML estimation). Two approximated LOOCV methods are also available: "H&L" and "Mahalanobis". The method "H&L" is a fast LOOCV approach based on Hoffbeck and Landgrebe (1996) tricks, and "Mahalanobis" is an approximation of the LOOCV score proposed by Theiler (2012). Both "H&L" and "Mahalanobis" work only with the "RidgeArch" penalty and for intercept only models (see details).
 }
 
 \item{REML}{
@@ -44,22 +44,22 @@ Use REML (default) or ML for estimating the parameters.
 
 \item{...}{
 Options to be passed through. For instance the type of penalization: 
-\code{penalty="RidgeArch"} (default), \code{penalty="RidgeAlt"}, or \code{penalty="LASSO"}. The target matrices used by "RidgeArch" and "RidegeAlt" penalizations: \code{target="unitVariance"}, \code{target="Variance"} or \code{target="null"}... etc. (see details)
+\code{penalty="RidgeArch"} (default), \code{penalty="RidgeAlt"}, or \code{penalty="LASSO"}. The target matrices used by "RidgeArch" and "RidgeAlt" penalizations: \code{target="unitVariance"}, \code{target="Variance"} or \code{target="null"}... etc. (see details)
 }
 
 }
 \details{
-\code{mvgls} allows fitting various multivariate linear models to high-dimensional datasets (i.e. where the number of variables \emph{p} is larger than \emph{n}) for which the residuals have a correlated structure (e.g. evolutionary models such as BM and OU). Models estimates are generally more accurate than maximum likelihood methods. Models fit can be compared using the GIC criterion (see ?\code{GIC}).
+\code{mvgls} allows fitting various multivariate linear models to high-dimensional datasets (i.e. where the number of variables \emph{p} is larger than \emph{n}) for which the residuals have a correlated structure (e.g. evolutionary models such as BM and OU). Models estimates are generally more accurate than maximum likelihood methods. Models fit can be compared using the GIC or EIC criterion (see ?\code{GIC} and ?\code{EIC}) and hypothesis testing can be performed using the \code{manova.gls} function.
 
 The tree is assumed to be fully dichotomic and in "postorder", otherwise the functions \code{multi2di} and \code{reorder.phylo} are used internally.
 
 The various \emph{arguments} that can be passed through \bold{"..."}:
 
-\bold{"penalty"} - The "penalty" argument allow specifying the type of penalization used for regularization (described in Clavel et al. 2018). The various penalizations are: \code{penalty="RidgeArch"} (the default), \code{penalty="RidgeAlt"} and \code{penalty="LASSO"}. The "RidgeArch" penalization shrink linearly the covariance matrix toward a target structure (see below for \code{target}). This penalization is generally fast and the tuning parameter is bounded between 0 and 1 (see van Wieringen & Peeters 2016). The "RidgeAlt" penalization scheme uses a quadratic ridge penalty to shrink the covariance matrix toward a specified target matrix (see \code{target} below and also see van Wieringen & Peeters 2016). Finally, the "LASSO" regularize the covariance matrix by estimating a sparse estimate of its inverse (Friedman et al. 2008). The computation of the solution for this penalization is computationally intensive. Moreover, this penalization scheme is not invariant to arbitrary rotations of the data.
+\bold{"penalty"} - The "penalty" argument allow specifying the type of penalization used for regularization (described in Clavel et al. 2019). The various penalizations are: \code{penalty="RidgeArch"} (the default), \code{penalty="RidgeAlt"} and \code{penalty="LASSO"}. The "RidgeArch" penalization shrink linearly the covariance matrix toward a target structure (see below for \code{target}). This penalization is generally fast and the tuning parameter is bounded between 0 and 1 (see van Wieringen & Peeters 2016). The "RidgeAlt" penalization scheme uses a quadratic ridge penalty to shrink the covariance matrix toward a specified target matrix (see \code{target} below and also see van Wieringen & Peeters 2016). Finally, the "LASSO" regularize the covariance matrix by estimating a sparse estimate of its inverse (Friedman et al. 2008). The computation of the solution for this penalization is computationally intensive. Moreover, this penalization scheme is not invariant to arbitrary rotations of the data.
 
-\bold{"target"} - This argument allows specifying the target matrix toward which the covariance matrix is shrunk for "Ridge" penalties. \code{target="unitVariance"} (for a diagonal target proportional to the identity) and \code{target="Variance"} (for a diagonal unequal variance target) can be used with both "RidgeArch" and "RidgeAlt" penalties. \code{target="null"} (a null target matrix) is only available for "RidgeAlt". Penalization with the "Variance" target shrink the eigenvectors of the covariance matrix and is therefore not rotation invariant. See details on the various target properties in Clavel et al. (2018).
+\bold{"target"} - This argument allows specifying the target matrix toward which the covariance matrix is shrunk for "Ridge" penalties. \code{target="unitVariance"} (for a diagonal target proportional to the identity) and \code{target="Variance"} (for a diagonal unequal variance target) can be used with both "RidgeArch" and "RidgeAlt" penalties. \code{target="null"} (a null target matrix) is only available for "RidgeAlt". Penalization with the "Variance" target shrink the eigenvectors of the covariance matrix and is therefore not rotation invariant. See details on the various target properties in Clavel et al. (2019).
 
-\bold{"error"} - If \code{TRUE} the measurement error (or intra-specific variance) is estimated from the data (as in mixed models). It should probably be systematically used with empirical data. See also Housworth et al. 2004 and Clavel et al. 2018 for details on the proposed implementation.
+\bold{"error"} - If \code{TRUE} the measurement error (or intra-specific variance) is estimated from the data as a nuisance parameter (like in mixed models). It should probably be systematically used with empirical data. See also Housworth et al. 2004 and Clavel et al. 2019 for details on the proposed implementation.
 
 \bold{"scale.height"} - Whether the tree should be scaled to unit length or not.
 
@@ -106,7 +106,7 @@ An object of class '\code{mvgls}'. It contains a list including the following co
 }
 \references{
 
-Clavel, J., Aristide, L., Morlon, H., 2018. A Penalized Likelihood framework for high-dimensional phylogenetic comparative methods and an application to new-world monkeys brain evolution. Systematic Biology DOI:10.1093/sysbio/syy045.
+Clavel, J., Aristide, L., Morlon, H., 2019. A Penalized Likelihood framework for high-dimensional phylogenetic comparative methods and an application to new-world monkeys brain evolution. Systematic Biology 68(1): 93-116.
 
 Friedman J., Hastie T., Tibshirani R. 2008. Sparse inverse covariance estimation with the graphical lasso. Biostatistics. 9:432-441.
 
@@ -129,6 +129,8 @@ Julien Clavel
 %% ~Make other sections like Warning with \section{Warning }{....} ~
 
 \seealso{
+\code{\link{manova.gls}}
+\code{\link{EIC}}
 \code{\link{GIC}}
 \code{\link{mvgls.pca}}
 \code{\link{fitted.mvgls}}
@@ -145,7 +147,7 @@ n <- 32 # number of species
 p <- 50 # number of traits (p>n)
 
 tree <- pbtree(n=n, scale=1) # phylogenetic tree
-R <- crossprod(matrix(rnorm(p*p), ncol=p)) # a random covariance matrix
+R <- crossprod(matrix(runif(p*p), ncol=p)) # a random covariance matrix
 # simulate a BM dataset
 Y <- mvSIM(tree, model="BM1", nsim=1, param=list(sigma=R, theta=rep(0,p))) 
 data=list(Y=Y)
@@ -156,12 +158,15 @@ fit3 <- mvgls(Y~1, data=data, tree, model="EB", penalty="RidgeArch")
 
 GIC(fit1); GIC(fit2); GIC(fit3) # BM have the lowest GIC value
 
+# Testing for phylogenetic signal with model fit
+signal <- mvgls(Y~1, data=data, tree, model="lambda", penalty="RidgeArch")
+summary(signal)
 
 
 # A High-dimensional dataset
 p <- 200 # number of traits (p>n)
 
-R <- crossprod(matrix(rnorm(p*p), ncol=p)) # a random symmetric matrix (covariance)
+R <- crossprod(matrix(runif(p*p), ncol=p)) # a random symmetric matrix (covariance)
 # simulate a BM dataset
 Y <- mvSIM(tree, model="BM1", nsim=1, param=list(sigma=R, theta=rep(0,p))) 
 data=list(Y=Y)

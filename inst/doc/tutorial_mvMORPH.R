@@ -1,14 +1,14 @@
-## ---- comment=">"--------------------------------------------------------
+## ---- comment=">"-------------------------------------------------------------
 # Load the package and dependencies (ape, phytools, corpcor, subplex, spam)
 library(mvMORPH)
 # Use a specified random number seed for reproducibility
 set.seed(14)
 
 
-## ------------------------------------------------------------------------
+## -----------------------------------------------------------------------------
 tree<-pbtree(n=100)
 
-## ---- comment=">"--------------------------------------------------------
+## ---- comment=">"-------------------------------------------------------------
 # Simulate two selective regimes
 state<-as.vector(c(rep("Forest",60),rep("Savannah",40))); names(state)<-tree$tip.label
 
@@ -16,13 +16,13 @@ state<-as.vector(c(rep("Forest",60),rep("Savannah",40))); names(state)<-tree$tip
 tree<-make.simmap(tree, state, model="ER", nsim=1)
 
 
-## ---- comment=">"--------------------------------------------------------
+## ---- comment=">"-------------------------------------------------------------
 # Plot the phylogeny with the mapped discrete trait
 col<-c("blue","orange"); names(col)<-c("Forest","Savannah")
 plotSimmap(tree,col, fsize=0.6, node.numbers=FALSE, lwd=3, pts=FALSE)
 
 
-## ---- comment=">"--------------------------------------------------------
+## ---- comment=">"-------------------------------------------------------------
 # 2 Random traits evolving along the phylogeny as a two-optimum OU
 set.seed(101)
 
@@ -33,7 +33,7 @@ data<-mvSIM(tree, param=list(sigma=sigma, alpha=alpha, ntraits=2, theta=theta,
 names_traits=c("limb.length","limb.width")), model="OUM", nsim=1)
 
 
-## ---- comment=">"--------------------------------------------------------
+## ---- comment=">"-------------------------------------------------------------
 # Fitting the Ornstein Uhlenbeck on the whole tree 
 trait1_OU1<- mvOU(tree, data[,1], model="OU1", diagnostic=FALSE, echo=FALSE)
 trait2_OU1<- mvOU(tree, data[,2], model="OU1", diagnostic=FALSE, echo=FALSE)
@@ -51,7 +51,7 @@ OU1<- mvOU(tree, data, model="OU1")
 AIC(OUM); AIC(OU1)
 
 
-## ---- eval=FALSE---------------------------------------------------------
+## ---- eval=FALSE--------------------------------------------------------------
 #  
 #  # Simulate 1000 traits under the two optima (OUM) and the unique optimum OU (OU1) process
 #  library(parallel)
@@ -101,7 +101,7 @@ AIC(OUM); AIC(OU1)
 #  
 #  
 
-## ---- comment=">"--------------------------------------------------------
+## ---- comment=">"-------------------------------------------------------------
 # We now try to test for significant "selective" interactions toward the optima
 # First: we fit a OUM model without interactions
 OUM_1<-mvOU(tree, data, model="OUM", param=list(alpha="diagonal"), 
@@ -114,14 +114,14 @@ AIC(OUM)
 # Log-likelihood ratio test
 LRT(OUM,OUM_1)
 
-## ---- comment=">"--------------------------------------------------------
+## ---- comment=">"-------------------------------------------------------------
 stationary(OUM)
 
 # we can use the cov2cor function from the R stats package
 # to get the evolutionary correlations between traits
 cov2cor(stationary(OUM))
 
-## ----results="hide", message=FALSE, comment=">"--------------------------
+## ----results="hide", message=FALSE, comment=">"-------------------------------
 # Simulated dataset
 set.seed(14)
 
@@ -158,7 +158,7 @@ data<-mvSIM(tree, param=list(sigma=list(sigma_1,sigma_2), theta=theta,
                              names_traits=c("Trait 1","Trait 2")), model="BMM", nsim=1)
 
 
-## ---- comment=">"--------------------------------------------------------
+## ---- comment=">"-------------------------------------------------------------
 # Fitting the models
 
 # BM1 - (Equal rate matrix)
@@ -208,14 +208,14 @@ LRT(model_6,model_2)
 LRT(model_6,model_1)
 
 
-## ---- comment=">"--------------------------------------------------------
+## ---- comment=">"-------------------------------------------------------------
 # Forest species
 cov2cor(model_6$sigma[,,1])
 
 # Savannah species
 cov2cor(model_6$sigma[,,2])
 
-## ---- comment=">"--------------------------------------------------------
+## ---- comment=">"-------------------------------------------------------------
 
 require(car)
 

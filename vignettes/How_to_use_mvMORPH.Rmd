@@ -932,7 +932,7 @@ print(results)
 
 # Bayesian mcmc
 
-**mvMORPH** models can be estimated using Bayesian mcmc. For instance we can use weakly informative priors using the various parameterizations in **mvMORPH**, or directly put priors on the final parameters (e.g., the inverse Wishart for the rate matrix sigma). Here is an example using the separation strategy based on the spherical parameterization (angles in the interval [0, $\pi$] to ensure the uniqueness of the spherical parameterization; and standard deviations expressed as uniform priors on [1e-5, 0.4] (but half-t or inverse Gamma should be preferred); see for instance Lu & Ades 2009; and the matrix parameterization section above).
+**mvMORPH** models can be estimated using Bayesian mcmc. For instance we can use weakly informative priors using the various parameterizations in **mvMORPH**, or directly put priors on the final parameters (e.g., the inverse Wishart for the rate matrix sigma). Here is an example using the separation strategy based on the spherical parameterization (angles in the interval [0, $\pi$] to ensure the uniqueness of the spherical parameterization; and standard deviations expressed as uniform priors on [1e-5, 0.4] in this example - there's surely better priors to be set on these values); see for instance Lu & Ades 2009; and the matrix parameterization section above).
 
 ```{r, comment=">", results="hide", eval=FALSE}
 set.seed(1)

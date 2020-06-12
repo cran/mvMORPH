@@ -1,8 +1,11 @@
+## mvMORPH 1.1.3
+    + CRAN request to remove the export statements for S3 classes
+    + replace is.binary.tree to is.binary.phylo, the former being deprecated from "ape".
+    + fix error in mvSHIFT. The wrong values were returned (but not printed) for "beta" in BMEB models.
 ## mvMORPH 1.1.2
     + replaced "F" by "FALSE" in example files to follow CRAN policies
     + optimization of some diagonal matrices computations
     + bug fix in mvSIM (SHIFT model without simmap tree provided)
-    + EIC is now estimated (by default) using the full likelihood evaluated at REML estimates
 ## mvMORPH 1.1.1
     +  update help pages of various functions
     +  Bugs fixes for bounds in the parameter search in "mvgls", and missing values estimation in "estim" with OU1 model.

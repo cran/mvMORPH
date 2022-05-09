@@ -60,7 +60,7 @@ GIC.mvgls <- function(object, ...){
     if(object$model=="BM"){
        mod.par=0
     }else if(object$model=="BMM"){
-        mod.par=(ncol(object$corrSt$phy$mapped.edge))
+       mod.par=(ncol(object$corrSt$phy$mapped.edge)-1) # should we consider k parameters or k-1 (i.e. relative scaling to the first group)
     }else{
        mod.par=1
     }
@@ -396,10 +396,10 @@ print.mvgls <- function(x, digits = max(3L, getOption("digits") - 3L), ...){
     # loocv or LL
     meth <- ifelse(x$REML, "REML", "ML")
     if(x$method=="LL"){
-        cat("\nGeneralized least squares fit by",meth,"\n")
+        if(inherits(x, "mvols")) cat("\nOrdinary least squares fit by",meth,"\n") else cat("\nGeneralized least squares fit by",meth,"\n")
         if(x$REML) cat("Log-restricted-likelihood:",round(x$logLik, digits=digits), "\n\n") else cat("Log-likelihood:",round(x$logLik, digits=digits), "\n\n")
     }else{
-        cat("\nGeneralized least squares fit by penalized",meth,"\n")
+        if(inherits(x, "mvols")) cat("\nOrdinary least squares fit by penalized",meth,"\n") else cat("\nGeneralized least squares fit by penalized",meth,"\n")
         if(x$REML){
             cat("LOOCV of the log-restricted-likelihood:",round(x$logLik, digits=digits), "\n\n")
         }else{
@@ -455,11 +455,11 @@ print.summary.mvgls <- function(x, digits = max(3, getOption("digits") - 3), ...
     meth <- ifelse(x$REML, "REML", "ML")
     
     if(x$method=="LL"){
-        cat("\nGeneralized least squares fit by",meth,"\n")
+        if(x$GLS) cat("\nGeneralized least squares fit by",meth,"\n") else cat("\nOrdinary least squares fit by",meth,"\n")
         print(x$results.fit,  quote = FALSE )
     }else{
         
-        cat("\nGeneralized least squares fit by penalized",meth,"\n")
+        if(x$GLS) cat("\nGeneralized least squares fit by penalized",meth,"\n") else cat("\nOrdinary least squares fit by penalized",meth,"\n")
         print(x$results.fit,  quote = FALSE )
     }
     
@@ -537,6 +537,7 @@ summary.mvgls <- function(object, ...){
     
     
     object$results.fit <- results.fit
+    object$GLS <- if(inherits(object,"mvols")) FALSE else TRUE
     class(object) <- c("summary.mvgls","mvgls")
     object
 }
@@ -787,6 +788,8 @@ predict.mvgls <- function(object, newdata, ...){
     },
     "EB"={ V <- vcv.phylo(.transformPhylo(tree, model="EB", param=object$param)) },
     "lambda"={ V <- vcv.phylo(.transformPhylo(tree, model="lambda", param=object$param)) },
+    #FIXME -- add BMM
+    "BMM"={stop("BMM model is not handled yet. Please contact the author for further assistance.")},
     )
     
     # If error=TRUE, we add it to the covariance matrix here

@@ -886,6 +886,10 @@ build.chol<-function(b,p){
     return(na_rm)
 }
 
+# Function to return a rate matrix estimate (under BM) from independent contrasts
+rate_pic <- function(phy, data){
+    return(crossprod(apply(data,2,pic, phy=phy))/Ntip(phy))
+}
 
 ##----------------------mvfit_likelihood--------------------------------------##
 
@@ -1292,7 +1296,7 @@ AIC.mvmorph<-function(object,...,k){
 }
 
 ## Return the model AICc
-AICc <- function(x) UseMethod("AICc")
+AICc <- function(object) UseMethod("AICc")
 AICc.mvmorph<-function(object){
     return(object$AICc)
 }

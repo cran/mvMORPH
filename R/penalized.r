@@ -89,7 +89,7 @@
             # update the residuals
             residuals2 <- mod_par$Y - mod_par$X%*%Bx
             Skpartial <- crossprod(residuals2[-x,])/(n-1)
-            .regularizedLik(Skpartial, residuals[x,], alpha, targM, target, penalty, const)
+            .regularizedLik(Skpartial, residuals[x,], alpha, targM, target, penalty, const) # try instead with current residual observation?
         })
         
         ll <- 0.5 * (n*p*log(2*pi) + p*Ccov + sum(llik))
@@ -532,12 +532,26 @@
     if(is.numeric(mserr)) phy$edge.length[extern] = phy$edge.length[extern] + mserr
     
     # Compute the independent contrasts scores
-    if(model!="OUvcv") C <- pruning(phy, trans=FALSE)
-    X <- crossprod(C$sqrtM, X)
-    Y <- crossprod(C$sqrtM, Y)
-    
-    # Return the determinant
-    deterM <- C$det
+    if(inherits(phy, "phylOLS")){
+        if((sum(phy$edge.length) - n)<=.Machine$double.eps){
+            # Return the determinant
+            deterM <- 0
+        }else{
+            sqrtM <- 1/sqrt(phy$edge.length[extern])
+            X <- X*sqrtM
+            Y <- Y*sqrtM
+            # Return the determinant => variance terms  of the 'star' tree
+            deterM <- sum(log(phy$edge.length[extern]))
+        }
+        
+    }else{
+        if(model!="OUvcv") C <- pruning(phy, trans=FALSE) # FIXME -> to remove the call to OUvcv?
+        X <- crossprod(C$sqrtM, X)
+        Y <- crossprod(C$sqrtM, Y)
+        
+        # Return the determinant
+        deterM <- C$det
+    }
     
     # Adjust the determinant for non-ultrametric OU (see Ho & Ane 2014 - Syst. Bio., p. 401)
     if(flag) deterM <- deterM + 2*sum(log(diagWeight))
@@ -724,27 +738,31 @@
         "BMM"={
             
             # guess starting values
-            start_values <- function(tree, data){
+            start_values <- function(tree, data, predictors){
                 tip_values <- 1:Ntip(tree)
                 index_tips <- tree$edge[,2]%in%tip_values
                 maps <- sapply(tree$maps[index_tips], function(x) names(x[length(x)]))
                 # check if any tips are missing?
                 k = ncol(tree$mapped.edge)
                 if(length(unique(maps))<k) {
-                    mod_val <- mean(diag(mvLL(tree, data, method="pic")$sigma))
+                    mod_val <- mean(diag(rate_pic(tree, data)))
                     guesses <- as.list(rep(sqrt(mod_val), k))
                 }else{
                     guesses <- lapply(colnames(tree$mapped.edge), function(map_names) {
                         dat_red <- which(maps==map_names)
                         tree_red=drop.tip(tree, tree$tip.label[!tree$tip.label%in%tree$tip.label[dat_red]] )
-                        sqrt(mean(diag(mvLL(tree_red, data[tree_red$tip.label,], method="pic")$sigma)))
+                        if(Ntip(tree_red)<=1){
+                                 sqrt(mean(diag(.rate_guess(tree, data[tree$tip.label,], predictors[tree$tip.label,])))) # simple estimate on the whole tree
+                             }else{
+                                 sqrt(mean(diag(.rate_guess(tree_red, data[tree_red$tip.label,], predictors[tree_red$tip.label,]))))
+                             }
                     })
                 }
                 
                 return(guesses)
             }
             
-            mod_val <- start_values(corrModel$structure, corrModel$Y)[-1]
+            mod_val <- start_values(corrModel$structure, corrModel$Y, corrModel$X)[-1]
             list_param <- c(list(range_val), mod_val)
             index_err <- length(list_param) + 1
         },
@@ -795,3 +813,24 @@
         },
     )
 }
+
+# ------------------------------------------------------------------------- #
+# .rate_guess                                                               #
+# options: phylo, Y, X                                                      #
+#                                                                           #
+# ------------------------------------------------------------------------- #
+
+.rate_guess <- function(phylo, Y, X){
+    # model
+    C <- pruning(phylo, trans=FALSE)
+    X <- crossprod(C$sqrtM, X)
+    Y <- crossprod(C$sqrtM, Y)
+    
+    # GLS estimates
+    XtX <- pseudoinverse(X)
+    B <- XtX%*%Y
+    residuals <- Y - X%*%B
+    
+    # Covariance matrix
+    return(crossprod(residuals)/Ntip(phylo))
+    }

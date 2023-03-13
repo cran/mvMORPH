@@ -16,6 +16,30 @@ GIC <- function(object, ...) UseMethod("GIC")
 EIC <- function(object, nboot=100L, nbcores=1L, ...) UseMethod("EIC")
 
 # ------------------------------------------------------------------------- #
+# AIC.mvgls                                                                 #
+# options: object, ..., k = 2                                               #
+# S3 method - Akaike Information Criterion - generic from stats             #
+# ------------------------------------------------------------------------- #
+
+AIC.mvgls <- function(object, ..., k = 2){
+    
+    if(object$method=="LL"){
+        p <- object$dims$p
+        LL = object$logLik
+        nparam = if(object$model=="BM") (length(object$start_values)-1) + length(object$coefficients) + p*(p + 1)/2 else length(object$start_values) + length(object$coefficients) + p*(p + 1)/2
+        # AIC
+        AIC = -2*LL+k*nparam
+    }else{
+        stop("AIC works only for models fit by Maximum Likelihood (method=\"LL\")")
+    }
+    
+    # return the results
+    results <- list(LogLikelihood=LL, AIC=AIC, nparam=nparam, k=k)
+    class(results) <- c("aic.mvgls","aic")
+    return(results)
+}
+
+# ------------------------------------------------------------------------- #
 # GIC.mvgls                                                                 #
 # options: model,...                                                        #
 # S3 method from "RPANDA"  package                                          #
@@ -186,11 +210,11 @@ EIC.mvgls <- function(object, nboot=100L, nbcores=1L, ...){
         diagWeight <- object$corrSt$diagWeight; is_weight = TRUE
         diagWeightInv <- 1/diagWeight
     }
-    Dsqrt <- pruning(object$corrSt$phy, trans=FALSE, inv=FALSE)$sqrtM # return warning message if n-ultrametric tree is used with OU?
+    Dsqrt <- .pruning_general(object$corrSt$phy, trans=FALSE, inv=FALSE)$sqrtM # return warning message if n-ultrametric tree is used with OU?
     # TODO (change to allow n-ultrametric and OU) > just need to standardize the data by the weights
     # if(object$model=="OU" & !is.ultrametric(object$variables$tree)) stop("The EIC method does not handle yet non-ultrametric trees with OU processes")
     
-    DsqrtInv <- pruning(object$corrSt$phy, trans=FALSE, inv=TRUE)$sqrtM
+    DsqrtInv <- .pruning_general(object$corrSt$phy, trans=FALSE, inv=TRUE)$sqrtM
     modelPerm <- object$call
     modelPerm$grid.search <- quote(FALSE)
     modelPerm$start <- quote(object$opt$par)
@@ -240,7 +264,7 @@ EIC.mvgls <- function(object, nboot=100L, nbcores=1L, ...){
         
         # Y|param*
         if(!restricted) {
-            sqM_temp <- pruning(objectBoot$corrSt$phy, trans=FALSE, inv=TRUE)$sqrtM
+            sqM_temp <- .pruning_general(objectBoot$corrSt$phy, trans=FALSE, inv=TRUE)$sqrtM
             if(is_weight){
                 residualsBoot <- try(crossprod(sqM_temp, (objectFit$variables$Y - objectFit$variables$X%*%objectBoot$coefficients)/objectBoot$corrSt$diagWeight), silent=TRUE)
             } else {
@@ -286,6 +310,7 @@ EIC.mvgls <- function(object, nboot=100L, nbcores=1L, ...){
         d1res <- D1(objectBoot=estimModelNull, objectFit=object, ndimCov=ndimCov, p=p, sqM=DsqrtInv, Ccov2=Ccov)
         d3res <- D3(objectBoot=estimModelNull, objectFit=object, loglik=llik, ndimCov=ndimCov, p=p)
         d1res+d3res
+        
     }, 1:nboot, mc.cores = getOption("mc.cores", nbcores))
     
     # check for errors first?
@@ -542,6 +567,13 @@ summary.mvgls <- function(object, ...){
     object
 }
 
+# AIC printing options
+print.aic.mvgls<-function(x,...){
+    cat("\n")
+    message("-- Akaike Information Criterion --","\n")
+    cat("AIC:",x$AIC,"| Log-likelihood",x$LogLikelihood,"\n")
+    cat("\n")
+}
 
 # GIC printing options
 print.gic.mvgls<-function(x,...){
@@ -578,6 +610,33 @@ print.eic.mvgls<-function(x,...){
                           mc.preschedule = mc.preschedule, mc.set.seed = mc.set.seed, mc.cleanup = mc.cleanup))
     }
 }
+
+# ------------------------------------------------------------------------- #
+# .pruning_general wrapper switch options for OLS vs GLS and various models #
+# options: tree, inv, scaled, trans, check                                  #
+#                                                                           #
+# ------------------------------------------------------------------------- #
+
+.pruning_general <- function(tree, inv=TRUE, scaled=TRUE, trans=TRUE, check=TRUE){
+    if(inherits(tree, "phylOLS")){
+        n <- Ntip(tree)
+        if((sum(tree$edge.length) - n)<=.Machine$double.eps){
+            # Return the determinant
+            det <- 0
+            sqrtMat <- diag(n)
+        }else{
+            descendent <- tree$edge[,2]
+            extern <- (descendent <= n)
+            if(inv) sqrt_phy <- 1/sqrt(tree$edge.length[extern]) else sqrt_phy <- sqrt(tree$edge.length[extern])
+            sqrtMat <- diag(sqrt_phy)
+            # Return the determinant => variance terms of the 'star' tree
+            det <- sum(2*log(sqrt_phy))
+        }
+        return(list(sqrtMat=sqrtMat, det=det))
+    }else{
+        return(pruning(tree, inv=inv, scaled=scaled, trans=trans, check=check))
+    }
+}
                         
 # ------------------------------------------------------------------------- #
 # print option for MANOVA tests  (output borrowed from "car" package)       #
@@ -601,7 +660,11 @@ print.manova.mvgls <- function(x, digits = max(3L, getOption("digits") - 3L), ..
       "**"}else if(i<0.05){"*"}else if(i<0.1){"."}else{""})
     
     table_results <- data.frame(Df=x$Df, stat=x$stat, approxF=x$approxF, numDf=x$NumDf, denDf=x$DenDf, pval=x$pvalue, signif=signif)
-    if(x$type!="glh" & x$type!="glhrm") rownames(table_results) <- x$terms else rownames(table_results) <- "Contrasts L"
+    if(x$type!="glh" & x$type!="glhrm"){
+        if(x$type=="III") rownames(table_results) <- x$terms[unique(x$dims$assign)+1] else rownames(table_results) <- x$terms[unique(x$dims$assign)]
+    }else{
+        rownames(table_results) <- "Contrasts L"
+    }
     colnames(table_results) <- c("Df", "test stat", "approx F", "num Df", "den Df", "Pr(>F)", "")
     print(table_results, digits = digits, ...)
     cat("---","\n")
@@ -620,7 +683,11 @@ print.manova.mvgls <- function(x, digits = max(3L, getOption("digits") - 3L), ..
       "**"}else if(i<0.05){"*"}else if(i<0.1){"."}else{""})
     
     table_results <- data.frame(stat=x$stat, pval=x$pvalue, signif=signif)
-    if(x$type!="glh" & x$type!="glhrm") rownames(table_results) <- x$terms else rownames(table_results) <- "Contrasts L"
+    if(x$type!="glh" & x$type!="glhrm"){
+        if(x$type=="III") rownames(table_results) <- x$terms[unique(x$dims$assign)+1] else rownames(table_results) <- x$terms[unique(x$dims$assign)]
+    }else{
+        rownames(table_results) <- "Contrasts L"
+    }
     colnames(table_results) <- c("Test stat", "Pr(>Stat)", "")
     print(table_results, digits = digits, ...)
     cat("---","\n")
@@ -677,6 +744,56 @@ plot.manova.mvgls <- function(x,...){
     }
 
 }
+
+# ------------------------------------------------------------------------- #
+# plot option for Pairwise tests  (distribution of the test statistic)      #
+# options: x, ...                                                           #
+#                                                                           #
+# ------------------------------------------------------------------------- #
+
+plot.pairs.mvgls <- function(x,...){
+  
+  args <- list(...)
+  if(is.null(args[["density"]])) density = FALSE else density = args$density
+  if(is.null(args[["breaks"]])) breaks = 50 else breaks = args$breaks
+  
+  nterms <- nrow(x$L)
+  if(is.null(rownames(x$L))) namesContrasts <- "contrasts L" else namesContrasts <- rownames(x$L)
+  
+  if(x$param==TRUE){
+    
+    for(i in 1:nterms){
+      df_mod <- x
+      d1=df_mod$NumDf[i]
+      d2=df_mod$DenDf[i]
+      
+      curve(df(x, df1=d1, df2=d2), 0, qf(0.9999, d1, d2), las=1,
+            main=paste("F test:", namesContrasts[i]),
+            xlab=paste("F value","(",round(x$approxF[i],3),")","p-value :", round(x$pvalue[i],3)), ylab="density" );
+      abline(v=x$approxF[i], col="red")
+    }
+    
+  }else{
+    
+    
+    # plot histogram with permuted statistics
+    for(i in 1:nterms){
+      
+      if(density){
+        plot(density(x$nullstat[,i]), main=paste("Statistic distribution:",x$terms[i]),xlab=paste(x$test,"(",round(x$stat[i],3),")","p-value :",
+                                                                                                  round(x$pvalue[i],3)), las=1, xlim=range(c(x$nullstat[,i],x$stat[i])))
+      }else{
+        hist(x$nullstat[,i], main=paste("Statistic distribution:",namesContrasts[i]),
+             xlab=paste(x$test,"(",round(x$stat[i],3),")","p-value :",
+                        round(x$pvalue[i],3)), las=1, breaks=breaks, border=NA, col="lightgrey", xlim=range(c(x$nullstat[,i],x$stat[i])));
+      }
+      abline(v=x$stat[i], col="red", lwd=2)
+    }
+  }
+  
+}
+
+
 
 # ------------------------------------------------------------------------- #
 # plot.mvgls                                                                #

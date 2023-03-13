@@ -75,6 +75,7 @@ The various \emph{arguments} that can be passed through \bold{"..."}:
 
 \bold{"tol"} - Minimum value for the regularization parameter. Singularities can occur with a zero value in high-dimensional cases. (default is \code{NULL})
 
+%%\bold{"randomRoot"} - For model "OU" with non-ultrametric trees (default is TRUE), uses a "randomRoot" parameterization (see Clavel et al. 2015 and \code{mvOU}).
 
 %%  ~~ If necessary, more details than the description above ~~
 }
@@ -84,7 +85,7 @@ An object of class '\code{mvgls}'. It contains a list including the following co
 
 \item{coefficients  }{a named vector of coefficients}
 \item{residuals     }{the residuals ("raw") of the model. That is response minus fitted values. Use the \code{residuals(x, type="normalized")} function to obtain the normalized residuals.}
-\item{fitted.values }{the fitted values}
+\item{fitted        }{the fitted values}
 \item{variables     }{the variables used for model fit}
 \item{sigma         }{the estimated covariance (Pinv) and precision (P) matrix, as well as the sample estimate (S)}
 \item{model         }{the evolutionary model. But more generally, the model used to specify the structure within the residuals}

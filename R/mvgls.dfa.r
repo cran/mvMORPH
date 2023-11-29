@@ -82,6 +82,7 @@ mvgls.dfa <- function(object, ...){
     prior <-  rep(1/nclass, nclass)
   }else{
     prior <- args$prior
+    if(is.null(prior)) prior <-  rep(1/nclass, nclass) # if a null value is provided by the user, we set equal prior for each classes
   }
   
   # classes ID for covariate models
@@ -261,7 +262,7 @@ predict.mvgls.dfa <- function(object, newdata, prior = object$prior, ...){
     # scale the covariance by the determinant of the evolutionary model
     # this make the vcv to the same scale as the traits.
     # should make the distance measure consistant with the Bayes rule between both OLS and GLS approaches.
-    if(!all(prior==prior[1])){
+    #if(!all(prior==prior[1])){ # Edit 26/06/23 => should scale it even when the priors are unequal, otherwise the height of the tree may have an impact on the estimation
         if(object$fit$REML){ #TODO handle "const" in REML determinant for OUM
             scale_fct <- (1/exp( (object$fit$corrSt$det - determinant(crossprod(object$fit$corrSt$X))$modulus) * (1/object$fit$dims$n)))
             Rinv <- Rinv * scale_fct
@@ -269,7 +270,7 @@ predict.mvgls.dfa <- function(object, newdata, prior = object$prior, ...){
             scale_fct <- (1/exp(object$fit$corrSt$det * (1/object$fit$dims$n)))
             Rinv <- Rinv * scale_fct
         }
-    }
+  
     
     # log-sum-exp trick to avoid over/under flow
     logsumexp <- function(v) max(v) + log(sum(exp(v - max(v))))
@@ -359,8 +360,7 @@ predict.mvgls.dfa <- function(object, newdata, prior = object$prior, ...){
     
     # assign factor levels to the predicted classes
     if(!is.null(object$fit$xlevels)){
-        classif = as.factor(classif)
-        levels(classif) = levels(as.factor(object$fit$xlevels[[object$term]]))
+        classif = factor(classif, levels=1:ncol(posterior), labels = as.factor(object$fit$xlevels[[object$term]]))
     }
     
     # results

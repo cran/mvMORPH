@@ -16,6 +16,32 @@ GIC <- function(object, ...) UseMethod("GIC")
 EIC <- function(object, nboot=100L, nbcores=1L, ...) UseMethod("EIC")
 
 # ------------------------------------------------------------------------- #
+# BIC.mvgls                                                                 #
+# options: object, ...                                                      #
+# S3 method - Bayesian Information Criterion - generic from stats           #
+# ------------------------------------------------------------------------- #
+
+BIC.mvgls <- function(object, ...){
+    # TODO generalize to mvXX functions
+    if(object$method=="LL"){
+        p <- object$dims$p
+        n <- object$dims$n # should take n or n*p?
+
+        LL = object$logLik
+        nparam = if(object$model=="BM") (length(object$start_values)-1) + length(object$coefficients) + p*(p + 1)/2 else length(object$start_values) + length(object$coefficients) + p*(p + 1)/2
+        # BIC
+        BIC = -2*LL+ log(n)*nparam
+    }else{
+        stop("BIC works only for models fit by Maximum Likelihood (method=\"LL\")")
+    }
+    
+    # return the results
+    results <- list(LogLikelihood=LL, BIC=BIC, nparam=nparam, k=log(n))
+    class(results) <- c("bic.mvgls","bic")
+    return(results)
+}
+
+# ------------------------------------------------------------------------- #
 # AIC.mvgls                                                                 #
 # options: object, ..., k = 2                                               #
 # S3 method - Akaike Information Criterion - generic from stats             #
@@ -284,7 +310,7 @@ EIC.mvgls <- function(object, nboot=100L, nbcores=1L, ...){
         detValue <- sum(2*log(diag(Gi1)))
         llik2 <- -0.5 * (ndimCov*p*log(2*pi) + p*Ccov1 + ndimCov*detValue + quadprod)
         
-        # Return the difference in LL for D1
+        # Return the difference in LL for D3
         return(loglik - llik2)
     }
     

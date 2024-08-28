@@ -1,3 +1,5 @@
+## mvMORPH 1.2.1
+    + fix type for integer in C header file
 ## mvMORPH 1.2.0
     + update tolerance value for mvgls tuning parameter search
     + changes to Fortran routines calls following CRAN policies

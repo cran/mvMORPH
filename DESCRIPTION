@@ -2,8 +2,8 @@ Package: mvMORPH
 Type: Package
 Title: Multivariate Comparative Tools for Fitting Evolutionary Models
         to Morphometric Data
-Version: 1.2.0
-Date: 2024-08-26
+Version: 1.2.1
+Date: 2024-08-28
 Authors@R: c(person(given = "Julien",
                       family = "Clavel",
                       role = c("aut", "cre"),
@@ -25,8 +25,8 @@ URL: https://github.com/JClavel/mvMORPH
 VignetteBuilder: knitr
 NeedsCompilation: yes
 Repository: CRAN
-Packaged: 2024-08-27 16:55:30 UTC; julic5
+Packaged: 2024-08-28 16:00:13 UTC; julic5
 Author: Julien Clavel [aut, cre],
   with contributions from Aaron King [aut],
   Emmanuel Paradis [aut]
-Date/Publication: 2024-08-27 18:50:02 UTC
+Date/Publication: 2024-08-28 23:20:02 UTC

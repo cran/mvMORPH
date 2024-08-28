@@ -10,9 +10,9 @@ The package is designed to handle ultrametric and non-ultrametric trees (*i.e.* 
 
 See the packages vignettes for details and examples: browseVignettes("mvMORPH").
 
-**mvMORPH 1.2.0**
+**mvMORPH 1.2.1**
 
-1. This is the version 1.2.0:
+1. This is the version 1.2.1:
   + Check the NEWS file for detailled updates
 
 2. _TODO_:

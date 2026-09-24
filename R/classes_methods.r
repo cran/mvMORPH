@@ -22,13 +22,23 @@ EIC <- function(object, nboot=100L, nbcores=1L, ...) UseMethod("EIC")
 # ------------------------------------------------------------------------- #
 
 BIC.mvgls <- function(object, ...){
+    
+    # retrieve arguments
+    args <- list(...)
+    if(is.null(args[["REML"]])) args$forceREML <- TRUE else args$forceREML <- args$REML
+    
+    p <- object$dims$p
+    n <- object$dims$n # should take n or n*p? # TO CHECK: should we use log(n) or log(n-m) when using the REML?
+    
+    if(object$REML & args$forceREML==FALSE) LL <- .reml_to_ml(object) else LL <- object$logLik
+    
     # TODO generalize to mvXX functions
     if(object$method=="LL"){
-        p <- object$dims$p
-        n <- object$dims$n # should take n or n*p?
-
-        LL = object$logLik
         nparam = if(object$model=="BM") (length(object$start_values)-1) + length(object$coefficients) + p*(p + 1)/2 else length(object$start_values) + length(object$coefficients) + p*(p + 1)/2
+        # BIC
+        BIC = -2*LL+ log(n)*nparam
+    }else if(object$method=="EmpBayes"){
+        nparam = if(object$model=="BM") (length(object$start_values)-1) + length(object$coefficients) else length(object$start_values) + length(object$coefficients)
         # BIC
         BIC = -2*LL+ log(n)*nparam
     }else{
@@ -49,10 +59,18 @@ BIC.mvgls <- function(object, ...){
 
 AIC.mvgls <- function(object, ..., k = 2){
     
+    # retrieve arguments
+    args <- list(...)
+    if(is.null(args[["REML"]])) args$forceREML <- TRUE else args$forceREML <- args$REML
+    if(object$REML & args$forceREML==FALSE) LL <- .reml_to_ml(object) else LL <- object$logLik
+  
     if(object$method=="LL"){
         p <- object$dims$p
-        LL = object$logLik
         nparam = if(object$model=="BM") (length(object$start_values)-1) + length(object$coefficients) + p*(p + 1)/2 else length(object$start_values) + length(object$coefficients) + p*(p + 1)/2
+        # AIC
+        AIC = -2*LL+k*nparam
+    }else if(object$method=="EmpBayes"){
+        nparam = if(object$model=="BM") (length(object$start_values)-1) + length(object$coefficients)  else length(object$start_values) + length(object$coefficients)
         # AIC
         AIC = -2*LL+k*nparam
     }else{
@@ -87,7 +105,7 @@ GIC.mvgls <- function(object, ...){
     P <- object$sigma$P # The precision matrix
     Pi <- object$sigma$Pinv # the covariance matrix
     S <- object$sigma$S # the sample estimate
-    Target <- .targetM(S=S, targM=target, penalty=penalty)
+    if(penalty!="EmpBayes") Target <- .targetM(S=S, targM=target, penalty=penalty)
     beta <- object$coefficients
     
     if(eigSqm){ # to follow the scheme in RPANDA
@@ -167,6 +185,8 @@ GIC.mvgls <- function(object, ...){
         
         df = sum(T1)/nC
         sigma_df <- df
+    }else{
+        sigma_df <- 0
     }
     
     # Number of parameters for the root state:
@@ -177,16 +197,29 @@ GIC.mvgls <- function(object, ...){
     })
     beta_df <- sum(T2)
     
-    if( min(m, sum(object$dims$assign!=0))>1 ) warning("GIC criterion with multiple predictors has not been fully tested. Please use it with care and consider EIC or simulations instead")
+    if( min(m, sum(object$dims$assign!=0))>1 & args$forceREML==FALSE) warning("GIC criterion with multiple predictors has not been fully tested. Please use it with care and consider EIC or simulations instead")
     
     # LogLikelihood (minus)
-    DP <- as.numeric(determinant(Pi)$modulus)
-    if(object$REML==TRUE & args$forceREML==FALSE) Ccov <- as.numeric(object$corrSt$det - determinant(crossprod(object$corrSt$X))$modulus + object$corrSt$const) else Ccov <- as.numeric(object$corrSt$det)
-    llik <- 0.5 * (ndimCov*p*log(2*pi) + p*Ccov + ndimCov*DP + ndimCov*sum(S*P))
-    GIC <- 2*llik + 2*(sigma_df+beta_df+mod.par)
+    if(penalty=="EmpBayes"){
+         if(object$REML & args$forceREML==FALSE) llik <- -.reml_to_ml(object) else llik <- -object$logLik
+         
+         # compute the bias term with effective df (+1 for the hyper-parameter/regularization term)
+         bias <- (beta_df+mod.par+1)
+         
+    }else{
+        DP <- as.numeric(determinant(Pi)$modulus)
+        if(object$REML==TRUE & args$forceREML==FALSE) Ccov <- as.numeric(object$corrSt$det -     determinant(crossprod(object$corrSt$X))$modulus + object$corrSt$const) else Ccov <- as.numeric(object$corrSt$det)
+        if(object$REML==TRUE & args$forceREML==FALSE) S <- (S*(n-m))/ndimCov # want quadratic product with REML estimate for P
+        llik <- 0.5 * (ndimCov*p*log(2*pi) + p*Ccov + ndimCov*DP + ndimCov*sum(S*P))
+        
+        # compute the bias term with effective df
+        bias <- (sigma_df+beta_df+mod.par)
+   }
+    
+    GIC <- 2*llik + 2*bias
     
     # return the results
-    results <- list(LogLikelihood=-llik, GIC=GIC, p=p, n=n, bias=sigma_df+beta_df+mod.par, bias_cov=sigma_df, args=args)
+    results <- list(LogLikelihood=-llik, GIC=GIC, p=p, n=n, bias=bias, bias_cov=sigma_df, args=args)
     class(results) <- c("gic.mvgls","gic")
     return(results)
 }
@@ -198,164 +231,323 @@ GIC.mvgls <- function(object, ...){
 # ------------------------------------------------------------------------- #
 
 EIC.mvgls <- function(object, nboot=100L, nbcores=1L, ...){
-    
-    # retrieve arguments
-    args <- list(...)
-    if(is.null(args[["eigSqm"]])) eigSqm <- TRUE else eigSqm <- args$eigSqm
-    if(is.null(args[["restricted"]])) restricted <- FALSE else restricted <- args$restricted
-    if(is.null(args[["REML"]])) args$forceREML <- FALSE else args$forceREML <- args$REML
-    
-    # retrieve data to simulate bootstrap samples
-    beta <- object$coefficients
-    if(eigSqm){ # to follow the scheme in RPANDA
-        sqM1 <- .sqM1(object$corrSt$phy)
-        if(!is.null(object$corrSt$diagWeight)){
-            w <- 1/object$corrSt$diagWeight
-            Y <- crossprod(sqM1, matrix(w*object$variables$Y, nrow=object$dims$n))
-            X <- crossprod(sqM1, matrix(w*object$variables$X, nrow=object$dims$n))
-        }else{
-            X <- crossprod(sqM1, object$variables$X)
-            Y <- crossprod(sqM1, object$variables$Y)
-        }
-        residuals <- Y - X%*%beta
+  
+  # retrieve arguments
+  args <- list(...)
+  if(is.null(args[["eigSqm"]])) eigSqm <- TRUE else eigSqm <- args$eigSqm
+  if(is.null(args[["restricted"]])) restricted <- FALSE else restricted <- args$restricted
+  if(is.null(args[["REML"]])) args$forceREML <- FALSE else args$forceREML <- args$REML
+  if(is.null(args[["method"]])) method <- object$method
+  if(is.null(args[["verbose"]])) verbose <- TRUE else verbose <- args$verbose
+  
+  # retrieve data to simulate bootstrap samples
+  beta <- object$coefficients
+  if(eigSqm){ # to follow the scheme in RPANDA
+    sqM1 <- .sqM1(object$corrSt$phy)
+    if(!is.null(object$corrSt$diagWeight)){
+      w <- 1/object$corrSt$diagWeight
+      Y <- crossprod(sqM1, matrix(w*object$variables$Y, nrow=object$dims$n))
+      X <- crossprod(sqM1, matrix(w*object$variables$X, nrow=object$dims$n))
     }else{
-        residuals <- residuals(object, type="normalized")
-        X <- object$corrSt$X
-        Y <- object$corrSt$Y
+      X <- crossprod(sqM1, object$variables$X)
+      Y <- crossprod(sqM1, object$variables$Y)
+    }
+    residuals <- Y - X%*%beta
+  }else{
+    residuals <- residuals(object, type="normalized")
+    X <- object$corrSt$X
+    Y <- object$corrSt$Y
+  }
+  
+  N = nrow(Y)
+  p = object$dims$p
+  if(object$REML==FALSE & args$forceREML==TRUE){
+    args$forceREML=FALSE
+    message("The EIC can only be calculated by REML when the objects have been fitted using REML. Please fit the model using REML to use REML=TRUE")
+  }
+  
+  if(object$REML) nTarget = object$dims$n - object$dims$m else nTarget = object$dims$n
+  
+  ## if REML=FALSE : args$forceREML=FALSE
+  #if(object$REML & args$forceREML==TRUE) ndimCov = object$dims$n - m else ndimCov = object$dims$n
+  if(args$forceREML==TRUE) ndimCov = object$dims$n - object$dims$m else ndimCov = object$dims$n
+  #penalty <- object$penalty
+
+  # Weight matrix (OU, etc)
+  if(is.null(object$corrSt$diagWeight)){
+    diagWeight <- 1; is_weight = FALSE
+  }else{
+    diagWeight <- object$corrSt$diagWeight; is_weight = TRUE
+    diagWeightInv <- 1/diagWeight
+  }
+  Dsqrt <- .pruning_general(object$corrSt$phy, trans=FALSE, inv=FALSE)$sqrtM # return warning message if n-ultrametric tree is used with OU?
+  # TODO (change to allow n-ultrametric and OU) > just need to standardize the data by the weights
+  # if(object$model=="OU" & !is.ultrametric(object$variables$tree)) stop("The EIC method does not handle yet non-ultrametric trees with OU processes")
+  
+  DsqrtInv <- .pruning_general(object$corrSt$phy, trans=FALSE, inv=TRUE)$sqrtM
+  
+  # Mean and residuals for the model
+  MeanNull <- object$variables$X%*%beta
+  
+  # Estimate the bias term
+  D1 <- function(objectBoot, objectFit, ndimCov, nTarget, p, sqM, Ccov2, XBoot, YBoot){ # LL(Y*|param*) - LL(Y*| param)
+    
+    # Y*|param*
+    residualsBoot <- residuals(objectBoot, type="normalized")
+    
+    # For boot "i" LL1(Y*|param*)
+    #if(objectFit$REML==TRUE & args$forceREML==FALSE) Ccov1 <- as.numeric(objectBoot$corrSt$det - determinant(crossprod(objectBoot$corrSt$X))$modulus + objectBoot$corrSt$const) else Ccov1 <- as.numeric(objectBoot$corrSt$det)
+    
+    if(objectFit$REML==TRUE & args$forceREML==FALSE) Ccov1 <- as.numeric(objectBoot$corrSt$det_ml) else Ccov1 <- as.numeric(objectBoot$corrSt$det)
+    
+    
+    # compute LL1(Y*|param*)
+    llik1 <- .llik_fn(object_boot=objectBoot, object_emp=objectFit, residualsBoot=residualsBoot,
+                      method=method, Ccov=Ccov1, n=ndimCov, nTarget=nTarget,
+                      p=p, v=p+1, bias_type="D1_1")
+    # Y*|param
+    #if(!restricted) residualsBoot <- objectBoot$corrSt$Y - objectBoot$corrSt$X%*%objectFit$coefficients # does not account for the phylo model of the original fit
+    if(!restricted){
+      if(is_weight){
+        residualsBoot <- crossprod(sqM, (YBoot - XBoot%*%objectFit$coefficients)*diagWeightInv)
+      }else{
+        residualsBoot <- crossprod(sqM, YBoot - XBoot%*%objectFit$coefficients)
+        
+      }
     }
     
-    N = nrow(Y)
-    p = object$dims$p
-    if(object$REML & args$forceREML==TRUE) ndimCov = object$dims$n - object$dims$m else ndimCov = object$dims$n
-    tuning <- object$tuning
-    target <- object$target
-    penalty <- object$penalty
-    if(is.null(object$corrSt$diagWeight)){
-        diagWeight <- 1; is_weight = FALSE
+    # For boot "i" LL2(Y*|param)
+    # if(objectFit$REML==TRUE & args$forceREML==FALSE) Ccov2 <- as.numeric(objectFit$corrSt$det - determinant(crossprod(objectFit$corrSt$X))$modulus + objectFit$corrSt$const) else Ccov2 <- as.numeric(objectFit$corrSt$det)
+    
+    llik2 <- .llik_fn(object_boot=objectBoot, object_emp=objectFit, residualsBoot=residualsBoot,
+                      method=method, Ccov=Ccov2, n=ndimCov, nTarget=nTarget,
+                      p=p, v=p+1, bias_type="D1_2")
+    
+    # Return the difference in LL for D1
+    return(llik1 - llik2)
+  }
+  
+  D3 <- function(objectBoot, objectFit, loglik, ndimCov, nTarget, p, method){ # LL(Y|param) - LL(Y| param*)
+    
+    # Y|param*
+    if(!restricted) {
+      sqM_temp <- .pruning_general(objectBoot$corrSt$phy, trans=FALSE, inv=TRUE)$sqrtM
+      if(is_weight){
+        residualsBoot <- try(crossprod(sqM_temp, (objectFit$variables$Y - objectFit$variables$X%*%objectBoot$coefficients)/objectBoot$corrSt$diagWeight), silent=TRUE)
+      } else {
+        residualsBoot <- try(crossprod(sqM_temp, objectFit$variables$Y - objectFit$variables$X%*%objectBoot$coefficients), silent=TRUE)
+        
+      }
+    }else{ residualsBoot <- objectFit$corrSt$Y - objectFit$corrSt$X%*%objectFit$coefficients}
+    
+    
+    # For boot "i" LL2(Y|param*)
+    #if(objectFit$REML==TRUE & args$forceREML==FALSE) Ccov1 <- as.numeric(objectBoot$corrSt$det - determinant(crossprod(objectBoot$corrSt$X))$modulus + objectBoot$corrSt$const) else Ccov1 <- as.numeric(objectBoot$corrSt$det)
+    
+    if(objectFit$REML==TRUE & args$forceREML==FALSE) Ccov1 <- as.numeric(objectBoot$corrSt$det_ml) else Ccov1 <- as.numeric(objectBoot$corrSt$det)
+    
+    
+    # compute LL2(Y|param*)
+    llik2 <- .llik_fn(object_boot=objectBoot, object_emp=objectFit, residualsBoot=residualsBoot,
+                      method=method, Ccov=Ccov1, n=ndimCov, nTarget=nTarget,
+                      p=p, v=p+1, bias_type="D1_1")
+    
+    # Return the difference in LL for D3
+    return(loglik - llik2)
+  }
+  
+  # Estimate EIC: LL+bias
+  
+  # Maximum Likelihood
+  #if(object$REML==TRUE & args$forceREML==FALSE) Ccov <- as.numeric(object$corrSt$det - determinant(crossprod(object$corrSt$X))$modulus + object$corrSt$const) else Ccov <- as.numeric(object$corrSt$det)
+  
+  if(object$REML==TRUE & args$forceREML==FALSE) Ccov <- as.numeric(object$corrSt$det_ml) else Ccov <- as.numeric(object$corrSt$det)
+  
+  if(method=="EmpBayes"){
+    
+    # df for the Matrix T distribution
+    v = p+1
+    
+    if(object$target=="Variance"){
+      target = colSums(residuals^2)*(1/nTarget)*object$tuning
+      SigS2 <- .fast_eigen_val(residuals*sqrt(1/(target)))
+      detSig <- sum(log(target*(v-p)))
     }else{
-        diagWeight <- object$corrSt$diagWeight; is_weight = TRUE
-        diagWeightInv <- 1/diagWeight
-    }
-    Dsqrt <- .pruning_general(object$corrSt$phy, trans=FALSE, inv=FALSE)$sqrtM # return warning message if n-ultrametric tree is used with OU?
-    # TODO (change to allow n-ultrametric and OU) > just need to standardize the data by the weights
-    # if(object$model=="OU" & !is.ultrametric(object$variables$tree)) stop("The EIC method does not handle yet non-ultrametric trees with OU processes")
-    
-    DsqrtInv <- .pruning_general(object$corrSt$phy, trans=FALSE, inv=TRUE)$sqrtM
-    modelPerm <- object$call
-    modelPerm$grid.search <- quote(FALSE)
-    modelPerm$start <- quote(object$opt$par)
-    
-    # Mean and residuals for the model
-    MeanNull <- object$variables$X%*%beta
-    
-    
-    # Estimate the bias term
-    D1 <- function(objectBoot, objectFit, ndimCov, p, sqM, Ccov2){ # LL(Y*|param*) - LL(Y*| param)
-        
-        # Y*|param*
-        residualsBoot <- residuals(objectBoot, type="normalized")
-        
-        # For boot "i" LL1(Y*|param*)
-        if(objectFit$REML==TRUE & args$forceREML==FALSE) Ccov1 <- as.numeric(objectBoot$corrSt$det - determinant(crossprod(objectBoot$corrSt$X))$modulus + objectBoot$corrSt$const) else Ccov1 <- as.numeric(objectBoot$corrSt$det)
-        Gi1 <- try(chol(objectBoot$sigma$Pinv), silent=TRUE)
-        if(inherits(Gi1, 'try-error')) return("error")
-        quadprod <- sum(backsolve(Gi1, t(residualsBoot), transpose = TRUE)^2)
-        detValue <- sum(2*log(diag(Gi1)))
-        llik1 <- -0.5 * (ndimCov*p*log(2*pi) + p*Ccov1 + ndimCov*detValue + quadprod)
-        
-        # Y*|param
-        #if(!restricted) residualsBoot <- objectBoot$corrSt$Y - objectBoot$corrSt$X%*%objectFit$coefficients # does not account for the phylo model of the original fit
-        if(!restricted){
-            if(is_weight){
-                residualsBoot <- crossprod(sqM, (objectBoot$variables$Y - objectBoot$variables$X%*%objectFit$coefficients)*diagWeightInv)
-            }else{
-                residualsBoot <- crossprod(sqM, objectBoot$variables$Y - objectBoot$variables$X%*%objectFit$coefficients)
-                
-            }
-        }
-        
-        # For boot "i" LL2(Y*|param)
-        # if(objectFit$REML==TRUE & args$forceREML==FALSE) Ccov2 <- as.numeric(objectFit$corrSt$det - determinant(crossprod(objectFit$corrSt$X))$modulus + objectFit$corrSt$const) else Ccov2 <- as.numeric(objectFit$corrSt$det)
-        Gi2 <- try(chol(objectFit$sigma$Pinv), silent=TRUE)
-        if(inherits(Gi2, 'try-error')) return("error")
-        quadprod <- sum(backsolve(Gi2, t(residualsBoot), transpose = TRUE)^2)
-        detValue <- sum(2*log(diag(Gi2)))
-        llik2 <- -0.5 * (ndimCov*p*log(2*pi) + p*Ccov2 + ndimCov*detValue + quadprod)
-        
-        # Return the difference in LL for D1
-        return(llik1 - llik2)
+      target = mean(colSums(residuals^2)*(1/nTarget))*object$tuning
+      SigS2 <- .fast_eigen_val(residuals*sqrt(1/(target)))
+      detSig <- p*log((v-p)*target) # note, with default df, v-p=1
     }
     
-    D3 <- function(objectBoot, objectFit, loglik, ndimCov, p){ # LL(Y|param) - LL(Y| param*)
-        
-        # Y|param*
-        if(!restricted) {
-            sqM_temp <- .pruning_general(objectBoot$corrSt$phy, trans=FALSE, inv=TRUE)$sqrtM
-            if(is_weight){
-                residualsBoot <- try(crossprod(sqM_temp, (objectFit$variables$Y - objectFit$variables$X%*%objectBoot$coefficients)/objectBoot$corrSt$diagWeight), silent=TRUE)
-            } else {
-                residualsBoot <- try(crossprod(sqM_temp, objectFit$variables$Y - objectFit$variables$X%*%objectBoot$coefficients), silent=TRUE)
-                
-            }
-        }else{ residualsBoot <- objectFit$corrSt$Y - objectFit$corrSt$X%*%objectFit$coefficients}
-        
-        #if(!restricted) residualsBoot <- objectFit$corrSt$Y - objectFit$corrSt$X%*%objectBoot$coefficients
-        #else residualsBoot <- objectFit$corrSt$Y - objectFit$corrSt$X%*%objectFit$coefficients
-        
-        # For boot "i" LL2(Y|param*)
-        if(objectFit$REML==TRUE & args$forceREML==FALSE) Ccov1 <- as.numeric(objectBoot$corrSt$det - determinant(crossprod(objectBoot$corrSt$X))$modulus + objectBoot$corrSt$const) else Ccov1 <- as.numeric(objectBoot$corrSt$det)
-        Gi1 <- try(chol(objectBoot$sigma$Pinv), silent=TRUE)
-        if(inherits(Gi1, 'try-error')) return("error")
-        quadprod <- sum(backsolve(Gi1, t(residualsBoot), transpose = TRUE)^2)
-        detValue <- sum(2*log(diag(Gi1)))
-        llik2 <- -0.5 * (ndimCov*p*log(2*pi) + p*Ccov1 + ndimCov*detValue + quadprod)
-        
-        # Return the difference in LL for D3
-        return(loglik - llik2)
-    }
+    Kdet <- 0.5*(v+ndimCov+p-1)*sum(log(1+SigS2))
     
-    # Estimate EIC: LL+bias
+    llik <-  lmvgamma((v+ndimCov+p-1)/2, p) - lmvgamma((v+p-1)/2, p) - (0.5*(ndimCov*p*log(pi))) - (0.5*p*Ccov) - (0.5*ndimCov*detSig) - Kdet
     
-    # Maximum Likelihood
-    if(object$REML==TRUE & args$forceREML==FALSE) Ccov <- as.numeric(object$corrSt$det - determinant(crossprod(object$corrSt$X))$modulus + object$corrSt$const) else Ccov <- as.numeric(object$corrSt$det)
+  }else{
     Gi <- try(chol(object$sigma$Pinv), silent=TRUE)
     if(inherits(Gi, 'try-error')) return("error")
     quadprod <- sum(backsolve(Gi, t(residuals), transpose = TRUE)^2)
     detValue <- sum(2*log(diag(Gi)))
     llik <- -0.5 * (ndimCov*p*log(2*pi) + p*Ccov + ndimCov*detValue + quadprod)
+  }
+  
+  # Estimate parameters on bootstrap samples
+  bias <- .parallel_mapply(function(i){
+      
+      # generate bootstrap sample: TODO check degenerate case when all the resampled values are identical?
+      Yp <- MeanNull + Dsqrt%*%(residuals[sample(N, replace=TRUE),])*diagWeight # sampling with replacement for bootstrap
+      rownames(Yp) <- rownames(object$variables$Y)
+      
+      estimModelNull <- .mvgls.boot(Y=Yp, object)
+      
+      d1res <- D1(objectBoot=estimModelNull, objectFit=object, ndimCov=ndimCov, nTarget=nTarget, p=p, sqM=DsqrtInv, Ccov2=Ccov, XBoot=object$variables$X, YBoot=Yp)
+      d3res <- D3(objectBoot=estimModelNull, objectFit=object, loglik=llik, ndimCov=ndimCov, nTarget=nTarget, p=p ,method=method)
+      d1res+d3res
+      
+    }, 1:nboot, mc.cores = getOption("mc.cores", nbcores), verbose=verbose)
     
-    # Estimate parameters on bootstrap samples
-    bias <- pbmcmapply(function(i){
-        
-        # generate bootstrap sample
-        Yp <- MeanNull + Dsqrt%*%(residuals[sample(N, replace=TRUE),])*diagWeight # sampling with replacement for bootstrap
-        rownames(Yp) <- rownames(object$variables$Y)
-        
-        modelPerm$response <- quote(Yp);
-        estimModelNull <- eval(modelPerm);
-        d1res <- D1(objectBoot=estimModelNull, objectFit=object, ndimCov=ndimCov, p=p, sqM=DsqrtInv, Ccov2=Ccov)
-        d3res <- D3(objectBoot=estimModelNull, objectFit=object, loglik=llik, ndimCov=ndimCov, p=p)
-        d1res+d3res
-        
-    }, 1:nboot, mc.cores = getOption("mc.cores", nbcores))
-    
-    # check for errors first?
-    bias <- .check_samples(bias)
-    nboot_eff <- length(bias)
-    
-    # compute the EIC
-    pboot <- mean(bias)
-    EIC <- -2*llik + 2*pboot
-    
-    # standard-error
-    se <- sd(bias)/sqrt(nboot_eff)
-    
-    # concatenate the results
-    results <- list(EIC=EIC, bias=bias, LogLikelihood=llik, se=se, p=p, n=N)
-    class(results) <- c("eic.mvgls","eic")
-    
-    return(results)
+  ## Sometimes, warnings are added to the object (string) and then any mathematical operation is prevented
+  if(inherits(bias,"list") & length(bias)>1) bias <- bias[[1]]
+
+  # check for errors first?
+  bias <- .check_samples(bias)
+  nboot_eff <- length(bias)
+  
+  # compute the EIC
+  pboot <- mean(bias)
+  EIC <- -2*llik + 2*pboot
+  
+  # standard-error
+  se <- sd(bias)/sqrt(nboot_eff)
+  
+  # concatenate the results
+  results <- list(EIC=EIC, bias=bias, LogLikelihood=llik, se=se, p=p, n=N)
+  class(results) <- c("eic.mvgls","eic")
+  
+  return(results)
 }
+
+# ------------------------------------------------------------------------- #
+# .reml_to_ml                                                               #
+# options: object, ...                                                      #
+# Compute the log-likelihood using reml estimates                           #
+# ------------------------------------------------------------------------- #
+.reml_to_ml <- function(object, ...){
+    
+    # parameters
+    ndimCov = object$dims$n
+    nTarget = object$dims$n - object$dims$m
+    p = object$dims$p
+    m = object$dims$m
+    
+    # Maximum Likelihood determinant from REML fit
+    #Ccov <- as.numeric(object$corrSt$det - determinant(crossprod(object$corrSt$X))$modulus + object$corrSt$const)
+    Ccov <- as.numeric(object$corrSt$det_ml)
+    
+    # residuals
+    residuals <- object$corrSt$Y - object$corrSt$X%*%object$coefficients
+    
+    # switch between methods
+    if(object$method=="EmpBayes"){
+        
+        # df for the Matrix T distribution
+        v = p+1
+        
+        if(object$target=="Variance"){
+          target = colSums(residuals^2)*(1/nTarget)*object$tuning
+          SigS2 <- .fast_eigen_val(residuals*sqrt(1/target))
+          detSig <- sum(log(target*(v-p)))
+        }else{
+          target = mean(colSums(residuals^2)*(1/nTarget))*object$tuning
+          SigS2 <- .fast_eigen_val(residuals*sqrt(1/target))
+          detSig <- p*log((v-p)*target) # note, with default df, v-p=1
+        }
+        
+        Kdet <- 0.5*(v+ndimCov+p-1)*sum(log(1+SigS2))
+        
+        llik <- lmvgamma((v+ndimCov+p-1)/2, p) - lmvgamma((v+p-1)/2, p) - 0.5*(ndimCov*p*log(pi)) - 0.5*p*Ccov - 0.5*ndimCov*detSig - Kdet
+        
+        
+    }else{
+        # using the Matrix normal distribution
+        Gi <- try(chol(object$sigma$Pinv), silent=TRUE)
+        if(inherits(Gi, 'try-error')) return("error")
+        quadprod <- sum(backsolve(Gi, t(residuals), transpose = TRUE)^2)
+        detValue <- sum(2*log(diag(Gi)))
+        llik <- -0.5 * (ndimCov*p*log(2*pi) + p*Ccov + ndimCov*detValue + quadprod)
+    }
+    
+    return(llik)
+}
+
+# ------------------------------------------------------------------------- #
+# .llik_fn_eic                                                              #
+# options: object_boot, object_emp, residualsBoot, method, Ccov, n, p, v,   #
+# bias_type, ...                                                            #
+# Compute the log-likelihood with bootstrap or empirical model fit in EIC   #
+# ------------------------------------------------------------------------- #
+.llik_fn <- function(object_boot, object_emp, residualsBoot, method, Ccov, n, p, v, bias_type, nTarget){
+  
+  if(method=="EmpBayes"){
+    # Switch between various evaluation of the bootstrapped samples
+    switch(bias_type,
+           "D1_1"={ # Y*|param* or for Y|param*
+             if(object_emp$target=="Variance"){
+               target = colSums(residualsBoot^2)*(1/nTarget)*object_boot$tuning
+               SigS2 <- .fast_eigen_val(residualsBoot*sqrt(1/target))
+               detSig <- sum(log(target*(v-p)))
+             }else{
+               target = mean(colSums(residualsBoot^2)*(1/nTarget))*object_boot$tuning
+               SigS2 <- .fast_eigen_val(residualsBoot*sqrt(1/target))
+               detSig <- p*log((v-p)*target) # note, with default df, v-p=1
+             }
+           },
+           "D1_2"={ # Y*|param
+             
+             if(object_emp$target=="Variance"){
+               target = colSums(residualsBoot^2)*(1/nTarget)*object_emp$tuning
+               SigS2 <- .fast_eigen_val(residualsBoot*sqrt(1/target))
+               detSig <- sum(log(target*(v-p)))
+             }else{
+               target = mean(colSums(residualsBoot^2)*(1/nTarget))*object_emp$tuning
+               SigS2 <- .fast_eigen_val(residualsBoot*sqrt(1/target))
+               detSig <- p*log((v-p)*target) # note, with default df, v-p=1
+             }
+             
+           })
+    
+    # compute the log-likelihood
+    Kdet <- 0.5*(v+n+p-1)*sum(log(1+SigS2))
+    llik <- lmvgamma((v+n+p-1)/2, p) - lmvgamma((v+p-1)/2, p) - 0.5*(n*p*log(pi)) - 0.5*p*Ccov - 0.5*n*detSig - Kdet
+    
+  }else{
+    
+    # Gaussian distribution
+    # Switch between various evaluation of the bootstrapped samples
+    switch(bias_type,
+           "D1_1"={ # Y*|param* or for Y|param*
+             
+             Gi1 <- try(chol(object_boot$sigma$Pinv), silent=TRUE)
+             if(inherits(Gi1, 'try-error')) return("error")
+             quadprod <- sum(backsolve(Gi1, t(residualsBoot), transpose = TRUE)^2)
+             detValue <- sum(2*log(diag(Gi1)))
+             
+             
+           },
+           "D1_2"={ # Y*|param
+             
+             Gi2 <- try(chol(object_emp$sigma$Pinv), silent=TRUE)
+             if(inherits(Gi2, 'try-error')) return("error")
+             quadprod <- sum(backsolve(Gi2, t(residualsBoot), transpose = TRUE)^2)
+             detValue <- sum(2*log(diag(Gi2)))
+             
+           })
+    
+    # compute the log-likelihood
+    llik <- -0.5 * (n*p*log(2*pi) + p*Ccov + n*detValue + quadprod)
+  }
+  return(llik)
+}
+
 
 # ------------------------------------------------------------------------- #
 # fitted.values.mvgls  / fitted.mvgls                                       #
@@ -421,8 +613,8 @@ coef.mvgls <- function(object, ...){
 # ------------------------------------------------------------------------- #
 logLik.mvgls<-function(object,...){
     
-    if(object$method=="LL"){
-        LL = -object$logLik
+    if(object$method=="LL" | object$method=="EmpBayes"){
+        LL = object$logLik # it's already the LL returned
     }else{
         # param
         n <- object$dims$n
@@ -446,7 +638,7 @@ print.mvgls <- function(x, digits = max(3L, getOption("digits") - 3L), ...){
     
     # loocv or LL
     meth <- ifelse(x$REML, "REML", "ML")
-    if(x$method=="LL"){
+    if(x$method=="LL" | x$method=="EmpBayes"){
         if(inherits(x, "mvols")) cat("\nOrdinary least squares fit by",meth,"\n") else cat("\nGeneralized least squares fit by",meth,"\n")
         if(x$REML) cat("Log-restricted-likelihood:",round(x$logLik, digits=digits), "\n\n") else cat("Log-likelihood:",round(x$logLik, digits=digits), "\n\n")
     }else{
@@ -505,7 +697,7 @@ print.summary.mvgls <- function(x, digits = max(3, getOption("digits") - 3), ...
     # loocv or LL
     meth <- ifelse(x$REML, "REML", "ML")
     
-    if(x$method=="LL"){
+    if(x$method=="LL" | x$method=="EmpBayes"){
         if(x$GLS) cat("\nGeneralized least squares fit by",meth,"\n") else cat("\nOrdinary least squares fit by",meth,"\n")
         print(x$results.fit,  quote = FALSE )
     }else{
@@ -576,6 +768,18 @@ summary.mvgls <- function(object, ...){
         
         results.fit <- data.frame("AIC"=AIC, "GIC"=GIC, "logLik"=LL, row.names = " ")
         
+    }else if(object$method=="EmpBayes"){
+        
+        LL = object$logLik
+        nparam = if(object$model=="BM") (length(object$start_values)-1) + length(object$coefficients)  else length(object$start_values) + length(object$coefficients) # the covariance matrices were marginalized
+        
+        # AIC
+        AIC = -2*LL+2*nparam
+        # GIC
+        GIC = GIC(object)$GIC
+        
+        results.fit <- data.frame("AIC"=AIC, "GIC"=GIC, "logLik"=LL, row.names = " ")
+        
     }else{
         # LogLikelihood (minus)
         DP <- as.numeric(determinant(object$sigma$Pi)$modulus)
@@ -601,6 +805,14 @@ print.aic.mvgls<-function(x,...){
     cat("\n")
 }
 
+# BIC printing options
+print.bic.mvgls<-function(x,...){
+    cat("\n")
+    message("-- Bayesian Information Criterion --","\n")
+    cat("BIC:",x$BIC,"| Log-likelihood",x$LogLikelihood,"\n")
+    cat("\n")
+}
+
 # GIC printing options
 print.gic.mvgls<-function(x,...){
     cat("\n")
@@ -613,7 +825,7 @@ print.gic.mvgls<-function(x,...){
 print.eic.mvgls<-function(x,...){
     cat("\n")
     message("-- Extended Information Criterion --","\n")
-    cat("EIC:",x$EIC,"| +/-",3.92*x$se,"| Log-likelihood",x$LogLikelihood,"\n")
+    cat("EIC:",x$EIC,"| +/-",3.92*x$se,"| Log-likelihood",x$LogLikelihood,"\n") # Perhaps this can specify what corresponds the 3.92 to
     cat("\n")
 }
 
@@ -628,12 +840,33 @@ print.eic.mvgls<-function(x,...){
                        ignore.interactive = getOption("ignore.interactive", F),
                        mc.preschedule = TRUE, mc.set.seed = TRUE, mc.cleanup = TRUE, verbose=TRUE){
     
-    if(verbose){
-        return(pbmcmapply(FUN, ..., MoreArgs = MoreArgs, mc.style = mc.style, mc.substyle = mc.substyle, mc.cores = mc.cores,
-                          ignore.interactive = ignore.interactive, mc.preschedule = mc.preschedule, mc.set.seed = mc.set.seed, mc.cleanup = mc.cleanup))
+    # Check if MacOS with new silicon chip is used to turn to safer socket parallel computing rather than forking
+    is_macos <- Sys.info()[["sysname"]] == "Darwin"
+    is_apple_silicon <- is_macos && grepl("arm64|aarch64", R.version$arch)
+    
+    # switch depending on the options
+    if(is_apple_silicon){
+        cl <- makeCluster(mc.cores)
+        
+        # Use pblapply if time to completion is returned otherwise use parLapply
+        if(verbose==TRUE){
+            # Should switch to pbapply in the long term ? TODO
+            result <- pblapply(..., FUN, cl=cl)
+        }else{
+            result <- parLapply(..., FUN, cl=cl)
+        }
+        stopCluster(cl)
+        return(simplify2array(result))
+        
     }else{
-        return(mcmapply(FUN, ..., MoreArgs = MoreArgs, mc.cores = mc.cores,
-                          mc.preschedule = mc.preschedule, mc.set.seed = mc.set.seed, mc.cleanup = mc.cleanup))
+    
+        if(verbose){
+            return(pbmcmapply(FUN, ..., MoreArgs = MoreArgs, mc.style = mc.style, mc.substyle = mc.substyle,    mc.cores = mc.cores,
+                              ignore.interactive = ignore.interactive, mc.preschedule = mc.preschedule,     mc.set.seed = mc.set.seed, mc.cleanup = mc.cleanup))
+        }else{
+            return(mcmapply(FUN, ..., MoreArgs = MoreArgs, mc.cores = mc.cores,
+                              mc.preschedule = mc.preschedule, mc.set.seed = mc.set.seed, mc.cleanup =  mc.cleanup))
+        }
     }
 }
 
@@ -669,8 +902,6 @@ print.eic.mvgls<-function(x,...){
 # options: x, digits, ...                                                   #
 #                                                                           #
 # ------------------------------------------------------------------------- #
-
-
 print.manova.mvgls <- function(x, digits = max(3L, getOption("digits") - 3L), ...){
   
   # select the appropriate output
@@ -761,7 +992,7 @@ plot.manova.mvgls <- function(x,...){
           plot(density(x$nullstat[,i]), main=paste("Statistic distribution:",x$terms[i]),xlab=paste(x$test,"(",round(x$stat[i],3),")","p-value :",
                 round(x$pvalue[i],3)), las=1, xlim=range(c(x$nullstat[,i],x$stat[i])))
       }else{
-          hist(x$nullstat[,i], main=paste("Statistic distribution:",x$terms[i]),
+          hist(x$nullstat[,i], freq=FALSE, main=paste("Statistic distribution:",x$terms[i]),
         xlab=paste(x$test,"(",round(x$stat[i],3),")","p-value :",
                 round(x$pvalue[i],3)), las=1, breaks=breaks, border=NA, col="lightgrey", xlim=range(c(x$nullstat[,i],x$stat[i]))); 
       }
@@ -1075,3 +1306,134 @@ ancestral.mvgls <- function(object, ...){
     
 }
 
+
+# ------------------------------------------------------------------------- #
+# internal function for fitting a model using mvgls() to estimate bias in   #
+# EIC and distribution in LRT                                               #
+# options: Y, object (from mvgls), ...                                      #
+# ------------------------------------------------------------------------- #
+.mvgls.boot <- function(Y, object, ...){
+  
+  # Recover options
+  args <- list(...)
+  if(is.null(args[["optimization"]])) optimization <- "L-BFGS-B" else optimization <- args$optimization
+  if(is.null(args[["ncores"]])) ncores <- 1L else ncores <- args$ncores
+  if(is.null(args[["tol"]])) tol <- NULL else tol <- args$tol
+  if(is.null(args[["contrasts"]])) contrasts.def <- NULL else contrasts.def <- args$contrasts
+  
+  # Defining variables
+  X = object$variables$X
+  tree = object$variables$tree
+  model = object$model
+  method = object$method
+  REML = object$REML
+  start = object$opt$par
+  penalty = object$penalty
+  n = object$dims$n
+  p = object$dims$p
+  m = object$dims$m
+  k = object$dims$k
+  target = object$target
+  if(is.na(object$mserr)) mserr = NULL else mserr = TRUE
+  
+  # dimensions
+  nobs = n
+  nloo = 1:n
+  
+  # Miscellanous - pre-calculations | TODO handle time series
+  #precalc = .prepModel(tree, model, root)
+  #precalc$randomRoot = randomRoot
+  #precalc$root_std = root_std
+  
+  precalc = object$corrSt$precalc
+  
+  if(method=="LL") penalized=FALSE else penalized=TRUE
+  if(isTRUE(REML)) ndimCov = n - m else ndimCov = n
+  
+  # CorrStruct object (include data, model, covariance...)
+  corrModel <- list(Y=Y, X=X, REML=REML, mserr=mserr,
+                    model=model, structure=tree, p=p, nobs=nobs, m=m,
+                    nloo=nloo, precalc=precalc)
+  
+  # Set bounds for parameter search
+  bounds <- corrModel$bounds <- object$corrSt$bounds
+  #bounds <- corrModel$bounds <- .setBounds(penalty=penalty, model=model, lower=low, upper=up, tol=tol, mserr=mserr, penalized=penalized, corrModel=corrModel, k=k)
+  
+  # Optimization
+  estimModel <- optim(start,
+                      fn = .loocvPhylo,
+                      method=optimization,
+                      upper=bounds$upper,
+                      lower=bounds$lower,
+                      cvmethod=method,
+                      targM=target,
+                      corrStr=corrModel,
+                      penalty=penalty,
+                      error=mserr,
+                      nobs=nobs,
+                      hessian=FALSE)
+  
+  # Estimates
+  tuning <- bounds$trTun(estimModel$par)
+  mod_par <- bounds$trPar(estimModel$par)
+  
+  # convergence & bounds checks?
+  .check_par_results(corrModel, mod_par, penalized);
+  
+  if(!is.null(mserr)) corrModel$mserr <- mserr_par <- bounds$trSE(estimModel$par) else mserr_par <- NA
+  ll_value <- -estimModel$value # either the loocv or the regular likelihood (minus because we minimize)
+  const_mtdist = NA # Not efficient
+  if(method=="EmpBayes"){
+    v = p+1 #This needs to be modified if it is allowed to select different values for v
+    #v=p+ndimCov
+    const_mtdist = -(lmvgamma((v+ndimCov+p-1)/2, p) - lmvgamma((v+p-1)/2, p) - 0.5*(ndimCov*p*log(pi)))
+    ll_value = -(estimModel$value + const_mtdist)
+  }
+  
+  # Exceptions [to improve]
+  X <- .make.x(tree, mod_par, X, model, precalc$root, precalc$root_std)
+  
+  # List of results to return
+  corrSt = .corrStr(mod_par, corrModel);
+  par_estimates <- .mvGLS(corrSt)
+  residuals <- par_estimates$residuals # normalized residuals
+  coefficients <- par_estimates$B
+  fitted.values <- X%*%coefficients # raw coefficients
+  residuals_raw <- Y - fitted.values
+  
+  glsStruct <- corrSt #Is this needed afterwards?
+  numIter <- estimModel$count[1] #Is this needed afterwards?
+  
+  # add an option to avoid the computation of the covariance matrix with EIC - EmpBayes method
+  if(method=="EmpBayes"){
+    R <- NULL
+  } else{
+    S <- crossprod(residuals)/ndimCov
+    R <- .penalizedCov(S, penalty=ifelse(method=="LL", method, penalty), targM=target, tuning=tuning, n=ndimCov) # change n for reml in EmpBayes
+  }
+  #S <- crossprod(residuals)/ndimCov
+  #R <- .penalizedCov(S, penalty=ifelse(method=="LL", method, penalty), targM=target, tuning=tuning, n=ndimCov) # change n for reml in EmpBayes
+  
+  ndims <- list(n=n, p=p, m=m, k=k)
+  
+  results = list(coefficients=coefficients,
+                     #fitted=fitted.values,
+                     logLik=ll_value,
+                     dims=ndims,
+                     method=method,
+                     model=model,
+                     residuals=residuals_raw,# is this needed afterwards?
+                     sigma=R,
+                     tuning=if(method=="LL") NA else tuning,
+                     param=if(model=="BM") NA else mod_par,
+                     mserr=mserr_par,
+                     start_values=start,
+                     corrSt=corrSt,
+                     penalty=if(method=="LL") "LL" else penalty,
+                     target=if(method=="LL") "LL" else target,
+                     REML=REML)
+                     
+  # Return the results
+  class(results) <- "mvgls"
+  return(results)
+}

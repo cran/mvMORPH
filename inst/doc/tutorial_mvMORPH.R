@@ -52,54 +52,54 @@ AIC(OUM); AIC(OU1)
 
 
 ## ----eval=FALSE---------------------------------------------------------------
-#  
-#  # Simulate 1000 traits under the two optima (OUM) and the unique optimum OU (OU1) process
-#  library(parallel)
-#  nsim=1000
-#  
-#  # Dataset simulated with the OUM maximum likelihood estimates
-#  data1<-simulate(OUM, nsim=nsim, tree=tree)
-#  # Dataset simulated with the MLE of the OU1 model
-#  data2<-simulate(OU1, nsim=nsim, tree=tree)
-#  
-#  # Fit of the models using the parallel package (we will use 2 cores), can take a while...
-#  
-#  library(parallel)
-#  nb_cores=2L
-#  oum_data1<- mclapply(1:nsim, function(x){
-#      mvOU(tree, data1[[x]], model="OUM", method="sparse", diagnostic=F, echo=F)
-#  }, mc.cores = getOption("mc.cores", nb_cores))
-#  
-#  ou1_data1<- mclapply(1:nsim, function(x){
-#      mvOU(tree, data1[[x]], model="OU1", method="sparse", diagnostic=F, echo=F)
-#  }, mc.cores = getOption("mc.cores", nb_cores))
-#  
-#  
-#  # Now same simulations on the second dataset
-#  oum_data2<- mclapply(1:nsim, function(x){
-#      mvOU(tree, data2[[x]], model="OUM", method="sparse", diagnostic=F, echo=F)
-#  }, mc.cores = getOption("mc.cores", nb_cores))
-#  
-#  ou1_data2<- mclapply(1:nsim, function(x){
-#      mvOU(tree, data2[[x]], model="OU1", method="sparse", diagnostic=F, echo=F)
-#  }, mc.cores = getOption("mc.cores", nb_cores))
-#  
-#  # Retrieve the results from the simulations
-#  OUM_simul<-sapply(1:nsim, function(x){
-#      c(oum_data1[[x]]$AICc,ou1_data1[[x]]$AICc)
-#  })
-#  
-#  OU1_simul<-sapply(1:nsim, function(x){
-#      c(oum_data2[[x]]$AICc,ou1_data2[[x]]$AICc)
-#  })
-#  
-#  # Now compute the type I error and power (type II)
-#  sum(OU1_simul[1,]<OU1_simul[2,])/nsim
-#  [1] 0.135
-#  sum(OUM_simul[1,]<OUM_simul[2,])/nsim
-#  [1] 1
-#  
-#  
+# 
+# # Simulate 1000 traits under the two optima (OUM) and the unique optimum OU (OU1) process
+# library(parallel)
+# nsim=1000
+# 
+# # Dataset simulated with the OUM maximum likelihood estimates
+# data1<-simulate(OUM, nsim=nsim, tree=tree)
+# # Dataset simulated with the MLE of the OU1 model
+# data2<-simulate(OU1, nsim=nsim, tree=tree)
+# 
+# # Fit of the models using the parallel package (we will use 2 cores), can take a while...
+# 
+# library(parallel)
+# nb_cores=2L
+# oum_data1<- mclapply(1:nsim, function(x){
+#     mvOU(tree, data1[[x]], model="OUM", method="sparse", diagnostic=F, echo=F)
+# }, mc.cores = getOption("mc.cores", nb_cores))
+# 
+# ou1_data1<- mclapply(1:nsim, function(x){
+#     mvOU(tree, data1[[x]], model="OU1", method="sparse", diagnostic=F, echo=F)
+# }, mc.cores = getOption("mc.cores", nb_cores))
+# 
+# 
+# # Now same simulations on the second dataset
+# oum_data2<- mclapply(1:nsim, function(x){
+#     mvOU(tree, data2[[x]], model="OUM", method="sparse", diagnostic=F, echo=F)
+# }, mc.cores = getOption("mc.cores", nb_cores))
+# 
+# ou1_data2<- mclapply(1:nsim, function(x){
+#     mvOU(tree, data2[[x]], model="OU1", method="sparse", diagnostic=F, echo=F)
+# }, mc.cores = getOption("mc.cores", nb_cores))
+# 
+# # Retrieve the results from the simulations
+# OUM_simul<-sapply(1:nsim, function(x){
+#     c(oum_data1[[x]]$AICc,ou1_data1[[x]]$AICc)
+# })
+# 
+# OU1_simul<-sapply(1:nsim, function(x){
+#     c(oum_data2[[x]]$AICc,ou1_data2[[x]]$AICc)
+# })
+# 
+# # Now compute the type I error and power (type II)
+# sum(OU1_simul[1,]<OU1_simul[2,])/nsim
+# [1] 0.135
+# sum(OUM_simul[1,]<OUM_simul[2,])/nsim
+# [1] 1
+# 
+# 
 
 ## ----comment=">"--------------------------------------------------------------
 # We now try to test for significant "selective" interactions toward the optima

@@ -61,8 +61,11 @@ mvgls.dfa <- function(object, ...){
   
   # scores (where Y are the residuals to the grand mean)
   if(any(asgn<=0)){
-    var_reduc=which(asgn<=0) # zero for now FIXME for more general model
-    Ystand <- object$variable$Y - object$variable$X[,var_reduc, drop=FALSE]%*%pseudoinverse(X[,var_reduc, drop=FALSE])%*%Y
+    #var_reduc=which(asgn<=0) # zero for now FIXME for more general model
+    var_reduc=which(asgn!=term) # For more general model, use all the variables that are not the one used in the discriminant
+   
+    Ystand <- object$variable$Y - object$variable$X[,var_reduc, drop=FALSE]%*%object$coefficients[var_reduc,] # We can directly take the estimated coefficients
+    #Ystand <- object$variable$Y - object$variable$X[,var_reduc, drop=FALSE]%*%pseudoinverse(X[,var_reduc, drop=FALSE])%*%Y
   }else{
     # FIXME:  is producing two discriminants...
     warning("The function is not working yet for models without intercepts")
@@ -241,11 +244,13 @@ predict.mvgls.dfa <- function(object, newdata, prior = object$prior, ...){
     
     args <- list(...)
     if(is.null(args[["tree"]])) tree <- NULL else tree <- args$tree
+    if(is.null(args[["na.action"]])) na.action <- na.pass else na.action <- args$na.action
+    if(is.null(args[["detscale"]])) detscale <- TRUE else detscale <- args$detscale
     # Checks that the model is based on dummy contrasts
     contrasts_types <- object$fit$contrasts[attr(object$fit$terms, "term.labels")]
     if(contrasts_types[object$term]!="contr.treatment") warning("Model assumed that the contrasts for the term of interest is of type \"contr.treatment\"")
     # Check if there's extra terms in the model
-    if(sum(object$classid)!=ncol(object$fit$variables$X)) stop("The DFA function is not currently working for multi-predictors models") # FIXME
+    # if(sum(object$classid)!=ncol(object$fit$variables$X)) stop("The DFA function is not currently working for multi-predictors models") # FIXME
     
     # Retrieve coefficients
     B <- coef(object$fit)
@@ -263,6 +268,7 @@ predict.mvgls.dfa <- function(object, newdata, prior = object$prior, ...){
     # this make the vcv to the same scale as the traits.
     # should make the distance measure consistant with the Bayes rule between both OLS and GLS approaches.
     #if(!all(prior==prior[1])){ # Edit 26/06/23 => should scale it even when the priors are unequal, otherwise the height of the tree may have an impact on the estimation
+    if(detscale){
         if(object$fit$REML){ #TODO handle "const" in REML determinant for OUM
             scale_fct <- (1/exp( (object$fit$corrSt$det - determinant(crossprod(object$fit$corrSt$X))$modulus) * (1/object$fit$dims$n)))
             Rinv <- Rinv * scale_fct
@@ -270,7 +276,10 @@ predict.mvgls.dfa <- function(object, newdata, prior = object$prior, ...){
             scale_fct <- (1/exp(object$fit$corrSt$det * (1/object$fit$dims$n)))
             Rinv <- Rinv * scale_fct
         }
-  
+    }else{
+        scale_fct <- 1/(sum(diag(vcv.phylo(object$fit$corrSt$phy)))/object$fit$dims$n)
+        Rinv <- Rinv * scale_fct
+    }
     
     # log-sum-exp trick to avoid over/under flow
     logsumexp <- function(v) max(v) + log(sum(exp(v - max(v))))
@@ -279,27 +288,49 @@ predict.mvgls.dfa <- function(object, newdata, prior = object$prior, ...){
         #if no datasets provided, classification rule is applied to the training dataset > see 9.12 in Rencher 2002
         # Bayes classifier for group "g" is d(x) = t(x)S^-1u - 0.5t(u)S^-1u + log(P(g)) => can be used to precompute quantities for multiple values to predict
         if(missing(newdata)){
-            prediction <- sapply(index_B, function(i){
-                SB <- Rinv%*%B[i,]
-                const_prior <- -0.5*t(B[i,])%*%SB + log(prior[i])
-                sapply(1:nrow(object$fit$variable$Y), function(x){
-                    t(object$fit$variable$Y[x,])%*%SB + const_prior
-                })
+            # Add back the intercept (aka the baseline group) to the standardized variables (can just remove it from var_reduc ?)
+            Ystand <- object$residuals + object$fit$variables$X[1:nrow(object$residuals ), which(object$fit$dims$assign==0), drop=FALSE]%*%object$fit$coefficients[which(object$fit$dims$assign==0),]
+          
+            prediction <- sapply(1:length(index_B), function(i){
+              SB <- Rinv%*%B[index_B[i],]
+              const_prior <- -0.5*t(B[index_B[i],])%*%SB + log(prior[i])
+              sapply(1:nrow(object$fit$variable$Y), function(x){
+                # t(object$fit$variable$Y[x,])%*%SB + const_prior
+                t(Ystand[x,])%*%SB + const_prior
+              })
             })
             
         }else{
-            if(!is.data.frame(newdata) & !is.matrix(newdata)) stop("the \"newdata\" should be a data.frame object with column names matching predictors names, and row names matching names in the tree")
-            # force to a matrix
-            newdata <- as.matrix(newdata)
             
-            prediction <- sapply(index_B, function(i){
-                SB <- Rinv%*%B[i,]
-                const_prior <- -0.5*t(B[i,])%*%SB + log(prior[i])
-                sapply(1:nrow(newdata), function(x){
-                    t(newdata[x,])%*%SB + const_prior
+            # Check if there is a covariate
+            if(sum(object$classid)!=ncol(object$fit$variables$X)){
+                # as in "stats v3.3.0"
+                m <- model.frame(object$fit$terms, newdata, xlev = object$fit$xlevels, na.action = na.action)
+                X <- model.matrix(object$fit$terms, m, contrasts.arg = object$fit$contrasts)
+                var_reduc=which(object$fit$dims$assign!=object$term)
+                Y <- model.response(m)
+                Ystand <- Y - X[,var_reduc, drop=FALSE]%*%object$fit$coefficients[var_reduc,]
+                
+                # Add back the intercept (aka the baseline group) to the standardized variables (can just remove it from var_reduc ?)
+                Ystand <- Ystand + X[, which(object$fit$dims$assign==0), drop=FALSE]%*%object$fit$coefficients[which(object$fit$dims$assign==0),]
+            }else{
+                if(!is.data.frame(newdata) & !is.matrix(newdata)) stop("the \"newdata\" should be a data.frame object with column names matching predictors names, and row names matching names in the tree")
+                var_reduc=which(object$fit$dims$assign!=object$term)
+                # force to a matrix
+                Ystand <- as.matrix(newdata) - object$fit$variables$X[1:nrow(newdata),var_reduc, drop=FALSE]%*%object$fit$coefficients[var_reduc,]
+                
+                # Add back the intercept (aka the baseline group) to the standardized variables
+                Ystand <- Ystand + object$fit$variables$X[1:nrow(newdata), which(object$fit$dims$assign==0), drop=FALSE]%*%object$fit$coefficients[which(object$fit$dims$assign==0),]
+            }
+            
+            prediction <- sapply(1:length(index_B), function(i){
+                SB <- Rinv%*%B[index_B[i],]
+                const_prior <- -0.5*t(B[index_B[i],])%*%SB + log(prior[i])
+                sapply(1:nrow(Ystand), function(x){
+                    t(Ystand[x,])%*%SB + const_prior
                 })
             })
-            if(!is.matrix(prediction))  prediction <- matrix(prediction, nrow=nrow(newdata))
+            if(!is.matrix(prediction))  prediction <- matrix(prediction, nrow=nrow(Ystand))
         }
         
         # Compute the posterior and classification
@@ -310,29 +341,48 @@ predict.mvgls.dfa <- function(object, newdata, prior = object$prior, ...){
         # rename
         names_variables <- attr(object$fit$variables$X,"dimnames")[[2]][object$classid]
         colnames(posterior) <- names_variables
-        if(missing(newdata)) rownames(posterior) = rownames(object$fit$variable$Y) else rownames(posterior) = rownames(newdata)
-        if(missing(newdata)) names(classif) = rownames(object$fit$variable$Y) else names(classif) = rownames(newdata)
+        if(missing(newdata)) rownames(posterior) = rownames(object$fit$variable$Y) else rownames(posterior) = rownames(Ystand)
+        if(missing(newdata)) names(classif) = rownames(object$fit$variable$Y) else names(classif) = rownames(Ystand)
         names(prior) <- names_variables
         
     }else{
         
         # checks
         if(!inherits(tree, "phylo")) stop("You must provide a tree object of class \"phylo\"")
-        if(!is.data.frame(newdata) & !is.matrix(newdata)) stop("the \"newdata\" should be a data.frame object with column names matching predictors names, and row names matching names in the tree ")
-        # prep.
-        predicted_names <- rownames(newdata)
-        rcov <- .resid_cov_phylo(tree, object$fit, predicted_names)
-        X1 <- matrix(1,ncol=1,nrow=nrow(newdata))
-        rownames(X1) <- predicted_names
-        
-        # modify the design matrix FIXME, is it necessary?
-        if(any(object$fit$dims$assign==0)){
-            grp <- as.factor(object$fit$variables$X[,object$classid]%*%(1:object$nclass))
-            Xn <- model.matrix(~grp+0)
-            resid <- object$fit$variable$Y - Xn%*%B
+        var_reduc=which(object$fit$dims$assign!=object$term)
+        # Check if there is a covariate
+        if(sum(object$classid)!=ncol(object$fit$variables$X)){
+            # as in "stats v3.3.0"
+            m <- model.frame(object$fit$terms, newdata, xlev = object$fit$xlevels, na.action = na.action)
+            X <- model.matrix(object$fit$terms, m, contrasts.arg = object$fit$contrasts)
+            Y <- model.response(m)
+            Ystand <- Y - X[,var_reduc, drop=FALSE]%*%object$fit$coefficients[var_reduc,]
+            predicted_names <- rownames(Y)
+            
+            # Add back the intercept (aka the baseline group) to the standardized variables
+            Ystand <- Ystand + X[, which(object$fit$dims$assign==0), drop=FALSE]%*%object$fit$coefficients[which(object$fit$dims$assign==0),]
         }else{
-            resid <- residuals(object$fit)
+            if(!is.data.frame(newdata) & !is.matrix(newdata)) stop("the \"newdata\" should be a data.frame object with column names matching predictors names, and row names matching names in the tree ")
+            Ystand <- as.matrix(newdata) - object$fit$variables$X[1:nrow(newdata), var_reduc, drop=FALSE]%*%object$fit$coefficients[var_reduc,]
+            predicted_names <- rownames(newdata)
+            
+            # Add back the intercept (aka the baseline group) to the standardized variables
+            Ystand <- Ystand + object$fit$variables$X[1:nrow(newdata), which(object$fit$dims$assign==0), drop=FALSE]%*%object$fit$coefficients[which(object$fit$dims$assign==0),]
         }
+        
+        # prep.
+        rcov <- .resid_cov_phylo(tree, object$fit, predicted_names)
+       # X1 <- matrix(1,ncol=1,nrow=nrow(newdata))
+       # rownames(X1) <- predicted_names
+       #
+       # # modify the design matrix FIXME, is it necessary?
+       # if(any(object$fit$dims$assign==0)){
+       #     grp <- as.factor(object$fit$variables$X[,object$classid]%*%(1:object$nclass))
+       #     Xn <- model.matrix(~grp+0)
+       #     resid <- object$fit$variable$Y - Xn%*%B
+       # }else{
+            resid <- residuals(object$fit)
+       # }
         
         # we compute the residuals across all subjects
         # the "bias" term can be computed before hand?
@@ -341,10 +391,10 @@ predict.mvgls.dfa <- function(object, newdata, prior = object$prior, ...){
         # compute prediction scores
         # prediction <- sapply(1:nrow(newdata), function(x){
         prediction <- sapply(predicted_names, function(x){
-            sapply(1:nrow(B), function(i){
-                predicted <- X1%*%B[i,] + bias
-                        -0.5*( t(as.numeric(newdata[x,] - predicted[x,]))%*%Rinv%*%as.numeric(newdata[x,] - predicted[x,])) + log(prior[i]) #eg eq 26 in Hastie et al. 1994 - PDA
-            })
+          sapply(1:length(index_B), function(i){
+            predicted <- B[index_B[i],] + bias[x,]
+            -0.5*( t(as.numeric(Ystand[x,] - predicted))%*%Rinv%*%as.numeric(Ystand[x,] - predicted)) + log(prior[i]) #eg eq 26 in Hastie et al. 1994 - PDA
+          })
         })
         
         # Compute the posterior and classification
@@ -360,16 +410,17 @@ predict.mvgls.dfa <- function(object, newdata, prior = object$prior, ...){
     
     # assign factor levels to the predicted classes
     if(!is.null(object$fit$xlevels)){
-        classif = factor(classif, levels=1:ncol(posterior), labels = as.factor(object$fit$xlevels[[object$term]]))
+        if(length(which(attr(object$fit$terms,"dataClasses")=="factor"))==1) gp_term = 1 else gp_term = 1 # FIXME - multifactorial models
+           classif = factor(classif, levels=1:ncol(posterior), labels = as.factor(object$fit$xlevels[[gp_term]]))
     }
     
     # results
     if(missing(newdata)){
         confusion <- table(classif, object$fit$variables$X[,object$classid]%*%(1:object$nclass) ) # FIXME provide the categorical variable instead?
         rownames(confusion) = colnames(confusion) = names_variables
-        results <- list(class=classif, posterior=posterior, prior=prior, confusion=confusion, training=TRUE)
+        results <- list(class=classif, posterior=posterior, prior=prior, confusion=confusion, training=TRUE, residuals = Ystand)
     }else{
-        results <- list(class=classif, posterior=posterior, prior=prior, training=FALSE)
+        results <- list(class=classif, posterior=posterior, prior=prior, training=FALSE, residuals = Ystand)
     }
     class(results) <- "mvgls.dfa.predict"
     return(results)

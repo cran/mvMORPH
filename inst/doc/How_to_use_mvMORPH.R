@@ -35,46 +35,46 @@ timeseries <- max(fossil_ages)-fossil_ages
 timeseries
 
 ## ----comment=">", eval=FALSE--------------------------------------------------
-#  set.seed(14)
-#  # Generating a random tree with 50 species
-#  tree<-pbtree(n=50)
-#  
-#  # Setting the regime states of tip species
-#  sta<-as.vector(c(rep("Forest",20),rep("Savannah",30))); names(sta)<-tree$tip.label
-#  
-#  # Making the simmap tree with mapped states
-#  tree<-make.simmap(tree, sta , model="ER", nsim=1)
-#  
-#  # Number of simulated datasets
-#  nsim<-1
-#  
-#  # Rates matrices for the "Forest" and the "Savannah" regimes
-#  # Note: use lists for multiple rates (matrices or scalars)
-#  sigma<-list(Forest=matrix(c(2,0.5,0.5,1),2), Savannah=matrix(c(5,3,3,4),2))
-#  
-#  # ancestral states for each traits
-#  theta<-c(0,0)
-#  
-#  # Simulate the "BMM" model
-#  simul_1<-mvSIM(tree, nsim=nsim, model="BMM", param=list(sigma=sigma, theta=theta))
-#  
-#  head(simul_1)
+# set.seed(14)
+# # Generating a random tree with 50 species
+# tree<-pbtree(n=50)
+# 
+# # Setting the regime states of tip species
+# sta<-as.vector(c(rep("Forest",20),rep("Savannah",30))); names(sta)<-tree$tip.label
+# 
+# # Making the simmap tree with mapped states
+# tree<-make.simmap(tree, sta , model="ER", nsim=1)
+# 
+# # Number of simulated datasets
+# nsim<-1
+# 
+# # Rates matrices for the "Forest" and the "Savannah" regimes
+# # Note: use lists for multiple rates (matrices or scalars)
+# sigma<-list(Forest=matrix(c(2,0.5,0.5,1),2), Savannah=matrix(c(5,3,3,4),2))
+# 
+# # ancestral states for each traits
+# theta<-c(0,0)
+# 
+# # Simulate the "BMM" model
+# simul_1<-mvSIM(tree, nsim=nsim, model="BMM", param=list(sigma=sigma, theta=theta))
+# 
+# head(simul_1)
 
 ## ----comment=">", results="hide", eval=FALSE----------------------------------
-#  # fit the BMM model on simulated data
-#  fit <- mvBM(tree, simul_1)
-#  
-#  # simulate 100 datasets from the fitted object
-#  simul_2 <- simulate(fit, tree=tree, nsim=100)
-#  
-#  # parametric bootstrap; e.g.:
-#  bootstrap <- lapply(simul_2, function(x) mvBM(tree, x, echo=F, diagnostic=F))
-#  
-#  # retrieve results; e.g. for the log-likelihood
-#  log_distribution <- sapply(bootstrap, logLik)
-#  
-#  hist(log_distribution, main="Log-likelihood distribution")
-#  abline(v=fit$LogLik, lty=2, lwd=5, col="red")
+# # fit the BMM model on simulated data
+# fit <- mvBM(tree, simul_1)
+# 
+# # simulate 100 datasets from the fitted object
+# simul_2 <- simulate(fit, tree=tree, nsim=100)
+# 
+# # parametric bootstrap; e.g.:
+# bootstrap <- lapply(simul_2, function(x) mvBM(tree, x, echo=F, diagnostic=F))
+# 
+# # retrieve results; e.g. for the log-likelihood
+# log_distribution <- sapply(bootstrap, logLik)
+# 
+# hist(log_distribution, main="Log-likelihood distribution")
+# abline(v=fit$LogLik, lty=2, lwd=5, col="red")
 
 ## ----comment=">"--------------------------------------------------------------
 set.seed(1)
@@ -315,16 +315,16 @@ matplot(data, type="o", pch=1, xlab="Time (relative)")
 legend("bottomright", inset=.05, legend=colnames(data), pch=19, col=c(1,2,3), horiz=TRUE)
 
 ## ----comment=">", results="hide", message=FALSE, eval=FALSE-------------------
-#  # define an user constrained drift matrix
-#  indice <- matrix(NA,3,3)
-#  diag(indice) <- c(1,2,3)
-#  indice[1,2] <- 4
-#  
-#  # fit the models
-#  fit_1 <- mvOUTS(timeseries , data, param=list(vcv="fixedRoot", decomp=indice))
-#  fit_2 <- mvOUTS(timeseries , data, param=list(vcv="fixedRoot", decomp="diagonal"))
-#  
-#  LRT(fit_1, fit_2)
+# # define an user constrained drift matrix
+# indice <- matrix(NA,3,3)
+# diag(indice) <- c(1,2,3)
+# indice[1,2] <- 4
+# 
+# # fit the models
+# fit_1 <- mvOUTS(timeseries , data, param=list(vcv="fixedRoot", decomp=indice))
+# fit_2 <- mvOUTS(timeseries , data, param=list(vcv="fixedRoot", decomp="diagonal"))
+# 
+# LRT(fit_1, fit_2)
 
 ## ----comment=">", results='hide'----------------------------------------------
 set.seed(1)
@@ -550,48 +550,48 @@ print(results)
 
 
 ## ----comment=">", results="hide", eval=FALSE----------------------------------
-#  set.seed(1)
-#  tree <- pbtree(n=50)
-#  # Simulate the traits
-#  sigma<-matrix(c(0.1,0.05,0.05,0.1),2)
-#  theta<-c(0,0)
-#  data<-mvSIM(tree, param=list(sigma=sigma, theta=theta), model="BM1", nsim=1)
-#  
-#  # Retrieve the log-likelihood of the model (we can use optimization="fixed")
-#  bm_model <- mvBM(tree, data, model="BM1", method="pic")
-#  
-#  # define weakly informative prior for the correlations and standard deviations separately
-#  prior <- function(x){
-#    a <- dunif(x[1],min=0, max=pi, TRUE) # prior for the angles
-#    b <- dunif(x[2],min=1e-5, max=0.4, TRUE) # prior for the standard deviations of trait 1
-#    c <- dunif(x[3],min=1e-5, max=0.4, TRUE) # prior for the standard deviations of trait 2
-#    return(a+b+c)
-#  }
-#  
-#  # define the log-likelihood distribution
-#  log_lik <- function(par){
-#    ll <- bm_model$llik(par)
-#    pr <- prior(par)
-#    return(ll+pr)
-#  }
-#  
-#  # Use an mcmc sampler
-#  require(spBayes)
-#  require(coda)
-#  start_val <- bm_model$param$opt$par #the ML values
-#  n.batch <- 500
-#  l.batch <- 25
-#  
-#  # run the mcmc
-#  fit <- adaptMetropGibbs(log_lik, starting=start_val, batch=n.batch, batch.length=l.batch)
-#  
-#  # plot the results
-#  chain <- mcmc(fit$p.theta.samples)
-#  plot(chain)
-#  
-#  # check the distribution of the transformed values
-#  rate_matrix <- t(apply(fit$p.theta.samples, 1, bm_model$param$sigmafun))
-#  colnames(rate_matrix) <- c("Sigma [1,1]","Sigma [1,2]","Sigma [2,1]","Sigma [2,2]")
-#  chain2 <- mcmc(rate_matrix)
-#  plot(chain2)
+# set.seed(1)
+# tree <- pbtree(n=50)
+# # Simulate the traits
+# sigma<-matrix(c(0.1,0.05,0.05,0.1),2)
+# theta<-c(0,0)
+# data<-mvSIM(tree, param=list(sigma=sigma, theta=theta), model="BM1", nsim=1)
+# 
+# # Retrieve the log-likelihood of the model (we can use optimization="fixed")
+# bm_model <- mvBM(tree, data, model="BM1", method="pic")
+# 
+# # define weakly informative prior for the correlations and standard deviations separately
+# prior <- function(x){
+#   a <- dunif(x[1],min=0, max=pi, TRUE) # prior for the angles
+#   b <- dunif(x[2],min=1e-5, max=0.4, TRUE) # prior for the standard deviations of trait 1
+#   c <- dunif(x[3],min=1e-5, max=0.4, TRUE) # prior for the standard deviations of trait 2
+#   return(a+b+c)
+# }
+# 
+# # define the log-likelihood distribution
+# log_lik <- function(par){
+#   ll <- bm_model$llik(par)
+#   pr <- prior(par)
+#   return(ll+pr)
+# }
+# 
+# # Use an mcmc sampler
+# require(spBayes)
+# require(coda)
+# start_val <- bm_model$param$opt$par #the ML values
+# n.batch <- 500
+# l.batch <- 25
+# 
+# # run the mcmc
+# fit <- adaptMetropGibbs(log_lik, starting=start_val, batch=n.batch, batch.length=l.batch)
+# 
+# # plot the results
+# chain <- mcmc(fit$p.theta.samples)
+# plot(chain)
+# 
+# # check the distribution of the transformed values
+# rate_matrix <- t(apply(fit$p.theta.samples, 1, bm_model$param$sigmafun))
+# colnames(rate_matrix) <- c("Sigma [1,1]","Sigma [1,2]","Sigma [2,1]","Sigma [2,2]")
+# chain2 <- mcmc(rate_matrix)
+# plot(chain2)
 

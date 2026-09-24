@@ -8,11 +8,16 @@
 ##                                                                            ##
 ################################################################################
 
-LRT<-function(model1, model2, echo=TRUE, ...){
+## ------------------------ S3 Method for switching between LRT options ------ ##
+LRT <- function(model1, model2, echo=TRUE, ...) UseMethod("LRT")
+
+## LRT for class mvMORPH
+LRT.mvmorph<-function(model1, model2, echo=TRUE,...){
 
 ## Options (TODO)
 args <- list(...)
 if(is.null(args[["simulations"]])){ simulations <- TRUE }else{ simulations <- FALSE}
+
 
 ##-------------------LRT comparison of the models-----------------------------##
 
@@ -128,4 +133,182 @@ results<-list(pval=LRT.prob, ratio=LRT, ddf=ddf, model1=model1$param$model, mode
 class(results)<-c("mvmorph.lrt")
 invisible(results)
 #End
+}
+
+
+# ------------------------------------------------------------------------- #
+# LRTsim                                                                    #
+# options: model1, model2, nsim=100, plot=TRUE, nbcores=1, ...              #
+# Compute the log-likelihood ratio test (using asymptotic                   #
+# solution (nested models) and simulation)                                  #
+# ------------------------------------------------------------------------- #
+LRT.mvgls <- function(model1, model2, echo=TRUE, ...){
+  
+  args <- list(...)
+  if(is.null(args[["nsim"]])) nsim = 100 else nsim = args$nsim
+  if(is.null(args[["nbcores"]])) nbcores = 1L else nbcores = args$nbcores
+  if(is.null(args[["alternative"]])) alternative = FALSE else alternative = args$alternative
+  if(is.null(args[["parametric"]])) parametric = FALSE else parametric = args$parametric
+  if(is.null(args[["REML"]])) REML = FALSE else REML = args$REML
+  
+  # # generate the test statistic:
+  if((model1$REML | model2$REML) & REML==FALSE){
+    flag = TRUE
+    ll1 = .reml_to_ml(model1)
+    ll2 = .reml_to_ml(model2)
+    lrt <- -2*(ll1 - ll2)
+  }else{
+    flag = FALSE
+    ll1 = model1$logLik
+    ll2 = model2$logLik
+    lrt <- -2*(ll1 - ll2)
+  }
+  
+  # just for coercion
+  lrt <- as.numeric(lrt)
+  
+  n_phy <- Ntip(model1$corrSt$phy)
+  
+  get_info_nonpar = function(object){
+    phyloSqrt <- pruning(object$corrSt$phy, trans=FALSE, inv=FALSE)$sqrtM
+    # retrieve the expected values (ancestral states)
+    expect = fitted(object)
+    # the normalized/decorrelated residuals
+    resid <- residuals(object, type="normalized")
+    
+    return(list('phyloSqrt'=phyloSqrt,'expect'=expect,'resid'=resid))
+  }
+  new_data <- get_info_nonpar(model1)
+  
+  names_data = model1$corrSt$phy$tip.label
+    
+      fun_dist_null <- function(x){
+          
+          if(parametric){
+              data_boot <- simulate(model1, nsim=1)
+              rownames(data_boot) <- model1$corrSt$phy$tip.label
+          }else{
+              bootstrap_residuals <- new_data$phyloSqrt %*% new_data$resid[c(sample(n_phy-1, replace = TRUE),n_phy),] # remove intercept from boostrapping if the pruning algorithm is used
+              data_boot <- new_data$expect + bootstrap_residuals
+              rownames(data_boot) <- model1$corrSt$phy$tip.label
+          }
+        
+        estimModelNull <- .mvgls.boot(Y=data_boot, object=model1)
+        estimModelAlt <- .mvgls.boot(Y=data_boot, object=model2)
+        
+          if(flag){
+            -2*(.reml_to_ml(estimModelNull) - .reml_to_ml(estimModelAlt))
+          }else{
+            -2*(estimModelNull$logLik -estimModelAlt$logLik)
+          }
+        
+      }
+
+    mc.cores = getOption("mc.cores", nbcores)
+    cl <- makeCluster(mc.cores)
+    #clusterExport(cl=cl, varlist=c("flag","names_data","new_data","n_phy","model1","model2"), envir=environment())
+    stat_dist <- pblapply(1:nsim, FUN=fun_dist_null, cl=cl)
+    stopCluster(cl)
+    stat_dist <- simplify2array(stat_dist)
+    
+    # compute the p-value
+    lrtpval <- mean(as.numeric(lrt)<=stat_dist)
+    
+    ## Check if comparison to the alternative is wanted?
+    if(alternative){
+        new_data2 <- get_info_nonpar(model2)
+        
+        fun_dist_alt = function(x){
+            
+            if(parametric){
+                data_boot2 <- simulate(model2, nsim=1)
+                rownames(data_boot2) <- model2$corrSt$phy$tip.label
+            }else{
+                bootstrap_residuals2 <- new_data2$phyloSqrt %*% new_data2$resid[c(sample(n_phy-1, replace = TRUE),n_phy),] # remove intercept from boostrapping if the pruning algorithm is used
+                data_boot2 <- new_data2$expect + bootstrap_residuals2
+                rownames(data_boot2) <-  model2$corrSt$phy$tip.label
+            }
+            
+            estimModelNull <- .mvgls.boot(Y=data_boot2, object=model1)
+            estimModelAlt <- .mvgls.boot(Y=data_boot2, object=model2)
+            
+            if(flag){
+                -2*(.reml_to_ml(estimModelNull) - .reml_to_ml(estimModelAlt))
+            }else{
+                -2*(estimModelNull$logLik -estimModelAlt$logLik)
+            }
+            
+        }
+        
+        cl <- makeCluster(mc.cores)
+        #clusterExport(cl=cl, varlist=c(var_list,"flag","names_data","new_data2","n_phy","modelNull","modelAlt"), envir=environment())
+        stat_dist2 <- pblapply(1:nsim, FUN=fun_dist_alt, cl=cl)
+        stopCluster(cl)
+        stat_dist2 <- simplify2array(stat_dist2)
+    }
+  
+  
+  # TODO :> use the print options from LRT (define it as class(results)<-c("mvmorph.lrt"))
+  # print
+  if(echo) cat("LRT test (non-parametric)", lrt," p-value:",lrtpval, "log-lik model 1:",ll1, "log-lik model 2:", ll2)
+  
+  # results
+  if(alternative){
+    results = list(ratio=lrt, model1=model1$model, model2=model2$model, dist=stat_dist, pval=lrtpval, dist_alt=stat_dist2)
+  } else{
+    results = list(ratio=lrt, model1=model1$model, model2=model2$model, dist=stat_dist, pval=lrtpval)
+  }
+  class(results)<-c("mvgls.lrt")
+  invisible(results)
+  
+}
+
+
+## Function to perform semi-parametric bootstrap from model fit by mvgls
+sbootstrap <- function(object, nboot, ...){
+  
+  # compute the square root matrix for the model fit
+  phyloSqrt <- pruning(object$corrSt$phy, trans=FALSE, inv=FALSE)$sqrtM
+  
+  # retrieve the expected values (ancestral states)
+  expect = fitted(object)
+  
+  # the normalized/decorrelated residuals
+  resid <- residuals(object, type="normalized")
+  
+ 
+     # generate datasets
+     sim <- lapply(1:nboot, function(j){
+       bootstrap_residuals <- phyloSqrt %*% resid[c(sample(Ntip(object$corrSt$phy)-1, replace = TRUE),Ntip(object$corrSt$phy)),] # remove intercept from boostrapping if the pruning algorithm is used
+       data = expect + bootstrap_residuals
+       rownames(data) = object$corrSt$phy$tip.label
+       data
+       })
+  
+  return(sim)
+}
+
+# ------------------------------------------------------------------------- #
+# plot.mvgls.lrt                                                            #
+# options: x, ...                                                           #
+# Plot the LRT statistics obtained through simulations (for both the        #
+# alternative and the "null" distributions)                                 #
+# ------------------------------------------------------------------------- #
+
+plot.mvgls.lrt <- function(x, breaks=50, ...){
+    
+  # plot
+  if(!is.null(x$dist_alt)){
+    limits_x = c(min(x$dist,x$dist_alt,x$ratio),max(x$dist,x$dist_alt,x$ratio))
+    hist_dist = hist(x$dist, breaks=breaks, plot=FALSE)
+    hist_dist_alt = hist(x$dist_alt, breaks=breaks, plot=FALSE)
+    limits_y = c(0,max(hist_dist$density,hist_dist_alt$density))
+    plot(hist_dist, freq=FALSE, las=1, main=paste("LRT:",round(x$ratio, digits=3), "p-value", round(x$pval, digits=5)),
+         xlab="Likelihood ratio", xlim = limits_x, ylim= limits_y, ...)
+    plot(hist_dist_alt, freq=FALSE, las=1, add=TRUE, col="red"); abline(v=x$ratio, lty=2)
+  }else{
+    limits_x = c(min(x$dist,x$ratio),max(x$dist,x$ratio))
+    hist(x$dist, freq = FALSE, breaks=breaks, las=1, main=paste("LRT:",round(x$ratio, digits=3), "p-value", round(x$pval, digits=5)),
+         xlab="Null distribution", xlim=limits_x, ...); abline(v=x$ratio, lty=2)
+  }
 }

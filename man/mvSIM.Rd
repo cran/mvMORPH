@@ -45,6 +45,8 @@ The mvSIM function allows simulating continuous trait (univariate or multivariat
 
 The "simulate" wrapper can also be used with a fitted object of class "mvmorph":
     simulate(object, nsim=1, tree=tree). See example below.
+    
+When "simulate" is used on an object fitted by \code{mvgls}, we can use the \code{bootstrap=TRUE} option to perform semi-parametric bootstrap (residuals of the model are bootstrapped for generating replicate - see Montoya et al. 2026).
 
 If parameter values are not provided, the default values are fixed to 1 (sigma, sig, alpha, beta) or to 0 for the mean at the root (ancestral state).
 
@@ -69,7 +71,9 @@ A matrix with simulated traits (columns) for the univariate case, or a list of m
 %% ...
 }
 \references{
-Paradis E. 2012. Analysis of Phylogenetics and Evolution with R. New York: Springer.
+Paradis E., 2012. Analysis of Phylogenetics and Evolution with R. New York: Springer.
+
+Montoya P., Fabre A-C., Goswami A., Morlon H., Clavel J. 2026. An Empirical Bayes Approach for the Study of Phenotypic Evolution from High-Dimensional Data. Systematic Biology: syag051, https://doi.org/10.1093/sysbio/syag051.
 
 %% ~put references to the literature/web site here ~
 }
@@ -108,7 +112,7 @@ tree<-pbtree(n=50)
 sta<-as.vector(c(rep("Forest",20),rep("Savannah",30))); names(sta)<-tree$tip.label
 
 # Making the simmap tree with mapped states
-tree<-make.simmap(tree,sta , model="ER", nsim=1)
+tree<-make.simmap(tree, sta, model="ER", nsim=1)
 col<-c("blue","orange"); names(col)<-c("Forest","Savannah")
 
 # Plot of the phylogeny for illustration
@@ -135,6 +139,17 @@ simul2<-mvSIM(tree,nsim=nsim,param=model_fit)
 
 # or try with generic "simulate" function
 simul3<-simulate(model_fit,nsim=nsim,tree=tree)
+
+
+## High-dimensional models. We can also use the 'simulate' wrapper
+## on the model fit by the "mvols" or "mvlgs" functions. This will either
+## performs parametric (generate data by sampling from the model with
+## estimated parameters) or semi-parametric bootstrap (generating data by 
+## resampling residuals).
+fit <- mvgls(simul[[1]]~1, tree=tree, model="BM", method="EmpBayes")
+
+new_data <- simulate(fit, nsim=1)
+new_data_boot <- simulate(fit, nsim=1, bootstrap=TRUE)
 
 ## Just-for-fun :Comparing parameters
 \donttest{

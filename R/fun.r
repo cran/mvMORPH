@@ -1286,7 +1286,7 @@ print.mvmorph.aicw<-function(x,...){
     cat("-- Akaike weights --","\n")
     aics <- data.frame(Rank=1:length(x$models), AIC=x$AIC, diff=x$diff, wi=x$wi, AICw=x$aicweights)
     row.names(aics) <- as.character(x$models)
-    aics <- aics[order(aics$wi, decreasing=TRUE),]
+    aics <- aics[order(aics$AIC),]
     aics$Rank <- 1:length(x$models)
     aics[,c(4,5)][aics[,c(4,5)]<1e-8]<-0
     print(aics, zero.print = ".", digits=3)
@@ -1327,9 +1327,16 @@ simulate.mvgls<-function(object,nsim=1,seed=NULL,...){
   
   # parameters
   param <- list(...)
-  p <- object$dims$p
-  n <- object$dims$n
-  theta <- numeric(p)
+  if(is.null(param[["bootstrap"]])){ boot = FALSE }else{ boot = param$bootstrap }
+  if(boot){
+      
+      sbootstrap(object, nboot=nsim)
+      
+  }else{
+   p <- object$dims$p
+   n <- object$dims$n
+   theta <- numeric(p)
+  
   if(is.null(param[["method"]])){ methodSim <- "cholesky" }else{ methodSim <- param$method }
   
   if(!is.ultrametric(object$variables$tree) & (object$model=="OU" | object$model=="OUM")){
@@ -1366,6 +1373,7 @@ simulate.mvgls<-function(object,nsim=1,seed=NULL,...){
     new_dataset <- effects + residuals_sim
   }
   return(new_dataset)
+  }
 }
 
 ## Return the stationary variance for the multivariate Ornstein-Uhlenbeck
